@@ -1,8 +1,3 @@
-### Logowanie do API
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "username": "admin",
-  "password": "admin123"
-}
+### Pobranie listy klientów (wymaga tokena)
+GET http://localhost:8080/api/clients
+Authorization: Bearer {{auth_token}}
