@@ -1,0 +1,11 @@
+Backend/target/
+Backend/*.iml
+Backend/*.log
+Backend/*.class
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.vscode/
+.DS_Store
+Thumbs.db
+.env
+*.env
