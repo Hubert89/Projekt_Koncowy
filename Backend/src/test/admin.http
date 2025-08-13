@@ -1,0 +1,210 @@
+@base = http://localhost:8080
+@admin_username = admin
+@admin_password = admin123
+@client_username = client
+@client_password = client123
+
+### 0) LOGIN ADMIN + zapisz {{admin_token}}
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "{{admin_username}}",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    const raw = response.body;
+    const data = (typeof raw === "string") ? JSON.parse(raw) : raw;
+    client.test("Admin login 200", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+    client.test("Admin login has token", function () {
+        client.assert(!!data.token, "Brak pola 'token'");
+    });
+    client.global.set("admin_token", data.token);
+%}
+
+### 1) [ADMIN] GET /api/products -> ustaw {{product_id}} jeśli są produkty
+GET {{base}}/api/products
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    if (Array.isArray(arr) && arr.length) {
+        const id = arr[0].id ?? arr[0].productId;
+        if (id) client.global.set("product_id", id);
+    }
+%}
+
+### 2) [ADMIN] (opcjonalnie) POST /api/products -> gdy potrzebny produkt testowy
+POST {{base}}/api/products
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Test Product {{$timestamp}}",
+  "sku": "SKU-{{$uuid}}",
+  "price": 99.99,
+  "description": "Produkt testowy do zamówień",
+  "active": true
+}
+
+> {%
+    // nic – tworzymy na wszelki wypadek, jeśli lista była pusta
+%}
+
+### 3) [ADMIN] GET /api/products (ponownie) -> zapisz {{product_id}}
+GET {{base}}/api/products
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    if (!Array.isArray(arr) || !arr.length) throw new Error("Brak produktów – krok 2 powinien utworzyć testowy produkt.");
+    const id = arr[0].id ?? arr[0].productId;
+    client.global.set("product_id", id);
+%}
+
+### 4) [ADMIN] PUT /api/products/{{product_id}} -> prosta edycja
+PUT {{base}}/api/products/{{product_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "Test Product UPDATED {{$timestamp}}",
+  "sku": "SKU-{{$uuid}}",
+  "price": 129.90,
+  "description": "Zmieniony opis",
+  "active": true
+}
+
+> {%
+    client.test("Admin can update product (200/204)", function () {
+        client.assert([200,204].includes(response.status), "Status " + response.status);
+    });
+%}
+
+### 5) LOGIN CLIENT (do utworzenia zamówienia testowego) + zapisz {{client_token}}
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "{{client_username}}",
+  "password": "{{client_password}}"
+}
+
+> {%
+    const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    client.global.set("client_token", data.token);
+%}
+
+### 6) [CLIENT] POST /api/client/orders -> utwórz zamówienie testowe, zapisz {{order_id}}
+POST {{base}}/api/client/orders
+Authorization: Bearer {{client_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "items": [
+    { "productId": {{product_id}}, "quantity": 2 }
+  ],
+  "shippingAddress": "Testowa 1, 30-000 Kraków",
+  "billingAddress": "Testowa 1, 30-000 Kraków",
+  "notes": "Zamówienie testowe {{$timestamp}}"
+}
+
+> {%
+    const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    const id = data.id ?? data.orderId;
+    if (!id) throw new Error("Brak ID zamówienia w odpowiedzi.");
+    client.global.set("order_id", id);
+%}
+
+### 7) [ADMIN] GET /api/orders -> 200, i ewentualny reset {{order_id}} (gdyby powyżej nie złapało)
+GET {{base}}/api/orders
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    client.test("Admin can list orders (200)", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+    try {
+        const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+        if (Array.isArray(arr) && arr.length && !client.global.get("order_id")) {
+            const id = arr[0].id ?? arr[0].orderId;
+            if (id) client.global.set("order_id", id);
+        }
+    } catch(e) {}
+%}
+
+### 8) [ADMIN] GET /api/orders/{{order_id}} -> szczegóły
+GET {{base}}/api/orders/{{order_id}}
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    client.test("Admin can read order details (200)", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+%}
+
+### 9) [ADMIN] PATCH /api/orders/{{order_id}}/status -> ustaw PAID
+PATCH {{base}}/api/orders/{{order_id}}/status
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+Accept: application/json
+
+{ "status": "PAID" }
+
+> {%
+    client.test("Admin can change order status (200/204)", function () {
+        client.assert([200,204].includes(response.status), "Status " + response.status);
+    });
+%}
+
+### 10) [ADMIN] GET /api/orders/{{order_id}} -> weryfikacja statusu (oczekiwane 'PAID')
+GET {{base}}/api/orders/{{order_id}}
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    try {
+        const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+        const status = data.status ?? data.state ?? data.orderStatus;
+        client.test("Order status is PAID", function () {
+            client.assert(status === "PAID", "Status zamówienia: " + status);
+        });
+    } catch(e) {
+        // jeśli odpowiada 200 bez JSON – pomiń weryfikację pola
+    }
+%}
+
+### 11) [NEGATYWNY] ADMIN na /api/client/orders -> zwykle 403
+GET {{base}}/api/client/orders
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    client.test("Admin blocked on /api/client/orders (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}
+
+### 12) [ADMIN] (opcjonalnie) DELETE /api/products/{{product_id}}
+# Użyj tylko jeśli chcesz posprzątać testowy produkt
+DELETE {{base}}/api/products/{{product_id}}
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    client.test("Admin can delete product (200/204)", function () {
+        client.assert([200,204].includes(response.status), "Status " + response.status);
+    });
+%}

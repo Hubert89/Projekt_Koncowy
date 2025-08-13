@@ -1,0 +1,156 @@
+@base = http://localhost:8080
+@client_username = client
+@client_password = client123
+@admin_username = admin
+@admin_password = admin123
+
+### 0) LOGIN CLIENT + zapisz {{client_token}}
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "{{client_username}}",
+  "password": "{{client_password}}"
+}
+
+> {%
+    const raw = response.body;
+    const data = (typeof raw === "string") ? JSON.parse(raw) : raw;
+
+    client.test("Client login 200", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+    client.test("Client login has token", function () {
+        client.assert(!!data.token, "Brak pola 'token'");
+    });
+
+    client.global.set("client_token", data.token);
+%}
+
+### 1) GET /api/products -> ustaw {{product_id}} jeśli istnieją
+GET {{base}}/api/products
+Accept: application/json
+
+> {%
+    if (response.status === 200) {
+        const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+        if (Array.isArray(arr) && arr.length) {
+            client.global.set("product_id", arr[0].id ?? arr[0].productId);
+        }
+    }
+%}
+
+### 1A) FALLBACK: jeśli nadal brak {{product_id}}, zaloguj admina (tylko do ODCZYTU listy produktów)
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "{{admin_username}}",
+  "password": "{{admin_password}}"
+}
+
+> {%
+    const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    if (data && data.token) client.global.set("admin_token", data.token);
+%}
+
+### 1B) FALLBACK: pobierz produkt jako ADMIN (bez tworzenia) -> ustaw {{product_id}}
+GET {{base}}/api/products
+Authorization: Bearer {{admin_token}}
+Accept: application/json
+
+> {%
+    if (!client.global.get("product_id") && response.status === 200) {
+        const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+        if (Array.isArray(arr) && arr.length) {
+            client.global.set("product_id", arr[0].id ?? arr[0].productId);
+        } else {
+            throw new Error("Brak produktów w systemie – utwórz 1 produkt jako ADMIN i wróć.");
+        }
+    }
+%}
+
+### 2) UTWÓRZ ZAMÓWIENIE (wersja minimalna – tylko items)
+POST {{base}}/api/client/orders
+Authorization: Bearer {{client_token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "items": [
+    { "productId": {{product_id}}, "quantity": 2 }
+  ],
+  "notes": "Zamówienie testowe {{$timestamp}}"
+}
+
+> {%
+    const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    client.test("Client can create order (201/200)", function () {
+        client.assert([200,201].includes(response.status), "Status " + response.status);
+    });
+    const id = data?.id ?? data?.orderId;
+    client.test("Order response contains id", function () {
+        client.assert(!!id, "Brak ID zamówienia w odpowiedzi");
+    });
+    client.global.set("order_id", id);
+%}
+
+
+### 3) [CLIENT] GET /api/client/orders -> lista moich zamówień
+GET {{base}}/api/client/orders
+Authorization: Bearer {{client_token}}
+Accept: application/json
+
+> {%
+    client.test("Client can list own orders (200)", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+%}
+
+### 4) [CLIENT] GET /api/client/orders/{{order_id}} -> szczegóły mojego zamówienia
+GET {{base}}/api/client/orders/{{order_id}}
+Authorization: Bearer {{client_token}}
+Accept: application/json
+
+> {%
+    client.test("Client can read own order details (200)", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+%}
+
+### 5) NEGATYWNY: bez tokena -> 401 na /api/client/orders
+GET {{base}}/api/client/orders
+Accept: application/json
+
+> {%
+    client.test("No token is 401", function () {
+        client.assert(response.status === 401, "Status " + response.status + " (spodziewany 401)");
+    });
+%}
+
+### 6) NEGATYWNY: Client na /api/orders (panel admin/staff) -> 403
+GET {{base}}/api/orders
+Authorization: Bearer {{client_token}}
+Accept: application/json
+
+> {%
+    client.test("Client blocked on /api/orders (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}
+
+### 7) NEGATYWNY: Client PATCH /api/orders/{{order_id}}/status -> 403
+PATCH {{base}}/api/orders/{{order_id}}/status
+Authorization: Bearer {{client_token}}
+Content-Type: application/json
+Accept: application/json
+
+{ "status": "PAID" }
+
+> {%
+    client.test("Client cannot change order status (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}

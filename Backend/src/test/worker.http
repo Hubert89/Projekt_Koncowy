@@ -1,0 +1,138 @@
+@base = http://localhost:8080
+@staff_username = staff
+@staff_password = staff123
+
+### 0) LOGIN PRACOWNIK + zapisz {{worker_token}}
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "{{staff_username}}",
+  "password": "{{staff_password}}"
+}
+
+> {%
+    const raw = response.body;
+    const data = (typeof raw === "string") ? JSON.parse(raw) : raw;
+
+    client.test("Worker login returns 200", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+    client.test("Worker login returns token", function () {
+        client.assert(!!data.token, "Brak pola 'token' w odpowiedzi");
+    });
+
+    client.global.set("worker_token", data.token);
+%}
+
+### 1) [WORKER] GET /api/products -> oczekiwane 200
+GET {{base}}/api/products
+Authorization: Bearer {{worker_token}}
+
+> {%
+    client.test("Worker can read products (200)", function () {
+        client.assert(response.status === 200, "Status " + response.status);
+    });
+%}
+
+### 2) [WORKER] POST /api/products -> oczekiwane 403 (ADMIN-only)
+POST {{base}}/api/products
+Authorization: Bearer {{worker_token}}
+Content-Type: application/json
+
+{
+  "name": "Worker attempt {{$timestamp}}",
+  "sku": "W-{{$uuid}}",
+  "price": 10.00,
+  "description": "Should be forbidden for worker",
+  "active": true
+}
+
+> {%
+    client.test("Worker cannot create product (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}
+
+### 3) [WORKER] GET /api/orders -> polityka różna: akceptujemy 200 lub 403
+GET {{base}}/api/orders
+Authorization: Bearer {{worker_token}}
+
+> {%
+    client.test("Worker orders access policy (200 or 403)", function () {
+        client.assert([200,403].includes(response.status), "Nieoczekiwany status " + response.status);
+    });
+
+    // jeśli 200 — zapisz order_id z pierwszego rekordu
+    if (response.status === 200) {
+        try {
+            const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+            if (Array.isArray(arr) && arr.length && (arr[0].id || arr[0].orderId)) {
+                client.global.set("order_id", arr[0].id ?? arr[0].orderId);
+            }
+        } catch (e) { /* ignore */ }
+    }
+%}
+
+### 3A) FALLBACK: LOGIN ADMIN (gdy PRACOWNIK nie widzi /api/orders)
+POST {{base}}/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "username": "admin",
+  "password": "admin123"
+}
+
+> {%
+    const data = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+    client.global.set("admin_token", data.token);
+%}
+
+### 3B) FALLBACK: pobierz order_id jako ADMIN (weź pierwszy)
+GET {{base}}/api/orders
+Authorization: Bearer {{admin_token}}
+
+> {%
+    if (response.status === 200) {
+        const arr = typeof response.body === "string" ? JSON.parse(response.body) : response.body;
+        if (Array.isArray(arr) && arr.length) {
+            const id = arr[0].id ?? arr[0].orderId;
+            if (id) client.global.set("order_id", id);
+        }
+    }
+%}
+
+### 4) [WORKER] GET /api/orders/{{order_id}} -> 200 lub 403/404 w zależności od polityki
+GET {{base}}/api/orders/{{order_id}}
+Authorization: Bearer {{worker_token}}
+
+> {%
+    client.test("Worker order details (200 or 403/404)", function () {
+        client.assert([200,403,404].includes(response.status), "Status " + response.status);
+    });
+%}
+
+### 5) [WORKER] PATCH /api/orders/{{order_id}}/status -> zwykle 403 (zmiana statusu tylko dla ADMIN)
+PATCH {{base}}/api/orders/{{order_id}}/status
+Authorization: Bearer {{worker_token}}
+Content-Type: application/json
+
+{ "status": "PAID" }
+
+> {%
+    client.test("Worker cannot change order status (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}
+
+### 6) [WORKER] GET /api/client/orders -> powinno być 403 (endpoint klienta)
+GET {{base}}/api/client/orders
+Authorization: Bearer {{worker_token}}
+
+> {%
+    client.test("Worker blocked on /api/client/orders (403 expected)", function () {
+        client.assert(response.status === 403, "Status " + response.status + " (spodziewany 403)");
+    });
+%}

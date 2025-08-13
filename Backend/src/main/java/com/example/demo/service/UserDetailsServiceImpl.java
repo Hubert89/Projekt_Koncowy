@@ -1,11 +1,12 @@
 package com.example.demo.service;
 
-import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.stereotype.Service;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.List;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -18,12 +19,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         var user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getUsername())
-                .password(user.getPassword())
-                .roles(user.getRole().name()) // ADMINISTRATOR / PRACOWNIK / KLIENT
+        // Zakładam, że user.getRole().name() zwraca: ADMINISTRATOR / PRACOWNIK / KLIENT
+        var authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
+
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getUsername())
+                .password(user.getPassword()) // już zhashowane (bcrypt)
+                .authorities(List.of(authority)) // dokładnie to samo co w SecurityConfig: hasRole("ADMINISTRATOR") itd.
                 .build();
     }
 }
-
-
