@@ -1,3 +1,16 @@
+/* lekkie wyrównanie tła i spacingu */
+body { min-height: 100vh; }
+
+/* pełny ekran i idealne centrowanie */
+.auth-center {
+  min-height: calc(100vh - 56px); /* odejmij wysokość navbaru (ok. 56px) */
+  display: grid;
+  place-items: center;             /* poziomo + pionowo */
+  padding: 1rem;                   /* trochę oddechu od krawędzi */
+}
+
+
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
