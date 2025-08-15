@@ -1,49 +1,88 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../lib/axios";
-import type { AuthUser, Role } from "./types";
+import type { Role, User } from "./types";
 
-type AuthCtx = {
-  user: AuthUser | null;
-  login: (u: string, p: string) => Promise<void>;
+type LoginResponse = { token: string; role: string; username: string };
+
+type Ctx = {
+  user: User | null;
+  loading: boolean;
+  login: (username: string, password: string) => Promise<Role>;
   logout: () => void;
-  hasRole: (...roles: Role[]) => boolean;
 };
 
-const Ctx = createContext<AuthCtx | null>(null);
+// --- Normalizacja ról ---
+// 1) Usuwa prefix ROLE_
+// 2) Zamienia polskie nazwy na angielskie (KLIENT->CLIENT, PRACOWNIK->EMPLOYEE)
+const normalizeRole = (raw: string): Role => {
+  const r = raw.trim().toUpperCase().replace(/^ROLE_/, "");
+  const map: Record<string, Role> = {
+    ADMIN: "ADMIN",
+    CLIENT: "CLIENT",
+    EMPLOYEE: "EMPLOYEE",
+    KLIENT: "CLIENT",
+    PRACOWNIK: "EMPLOYEE",
+  };
+  return map[r] ?? "CLIENT"; // bezpieczny domyślny fallback
+};
+
+const AuthCtx = createContext<Ctx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Odczyt sesji z localStorage po odświeżeniu strony
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const role = localStorage.getItem("role") as Role | null;
+    const storedRole = localStorage.getItem("role");
     const username = localStorage.getItem("username");
-    if (token && role && username) setUser({ token, role, username });
+
+    if (token && storedRole && username) {
+      setUser({
+        username,
+        role: normalizeRole(storedRole), // zawsze CLIENT/ADMIN/EMPLOYEE
+      });
+    }
+    setLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const { data } = await api.post("/api/auth/login", { username, password });
-    const auth: AuthUser = { token: data.token, role: data.role, username: data.username ?? username };
-    localStorage.setItem("token", auth.token);
-    localStorage.setItem("role", auth.role);
-    localStorage.setItem("username", auth.username);
-    setUser(auth);
+  // Logowanie
+  const login = async (username: string, password: string): Promise<Role> => {
+    const { data } = await api.post<LoginResponse>("/api/auth/login", {
+      username,
+      password,
+    });
+
+    const role = normalizeRole(data.role);
+
+    // zapisujemy już znormalizowaną rolę
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", role);
+    localStorage.setItem("username", data.username);
+
+    setUser({ username: data.username, role });
+
+    return role; // "CLIENT" | "ADMIN" | "EMPLOYEE"
   };
 
+  // Wylogowanie
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("username");
     setUser(null);
-    window.location.href = "/login/client";
   };
 
-  const hasRole = (...roles: Role[]) => !!user && roles.includes(user.role);
-
-  const value = useMemo(() => ({ user, login, logout, hasRole }), [user]);
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <AuthCtx.Provider value={{ user, loading, login, logout }}>
+      {children}
+    </AuthCtx.Provider>
+  );
 }
 
 export const useAuth = () => {
-  const v = useContext(Ctx);
-  if (!v) throw new Error("useAuth must be used within AuthProvider");
-  return v;
+  const ctx = useContext(AuthCtx);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 };

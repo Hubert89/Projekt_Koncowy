@@ -37,3 +37,5 @@ public class Product {
     public void setPrice(Double price) { this.price = price; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
 }
+
+
