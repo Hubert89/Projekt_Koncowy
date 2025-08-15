@@ -4,7 +4,6 @@ import { api } from "../lib/axios";
 import type { CreateOrderRequest, CreateOrderResponse } from "../types/shop";
 import ProductGrid from "../components/ProductGrid";
 
-// 🔹 te same PNG co w gridzie
 import laptopImg from "../assets/products/laptop-pro-15.png";
 import keyboardImg from "../assets/products/keyboard-red.png";
 import mouseImg from "../assets/products/mouse-bt.png";
@@ -16,7 +15,7 @@ const IMAGES: Record<number, { src: string; alt: string }> = {
   2: { src: keyboardImg, alt: "Klawiatura mechaniczna – podświetlana, przełączniki Red" },
   3: { src: mouseImg, alt: "Mysz bezprzewodowa – optyczna, Bluetooth" },
   4: { src: monitorImg, alt: "Monitor 27 cali 4K – IPS, rozdzielczość 3840x2160" },
-  5: { src: earbudsImg, alt: "Słuchawki douszne – redukcja szumów, etui ładujące" }
+  5: { src: earbudsImg, alt: "Słuchawki douszne – redukcja szumów, etui ładujące" },
 };
 
 export default function CartPage() {
@@ -34,11 +33,14 @@ export default function CartPage() {
       const payload: CreateOrderRequest = {
         items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
       };
-      const { data } = await api.post<CreateOrderResponse>("/api/orders", payload);
-      setResult(data);
+      const { data } = await api.post<CreateOrderResponse>("/api/client/orders", payload);
+
+      // zapisz wynik PRZED czyszczeniem koszyka
+      setResult(data); // { orderId, total }
       clear();
     } catch (e: any) {
-      setError(e?.response?.data?.message || "Nie udało się złożyć zamówienia");
+      const apiErr = e?.response?.data;
+      setError(apiErr?.error || apiErr?.message || "Nie udało się złożyć zamówienia");
     } finally {
       setPlacing(false);
     }
@@ -49,10 +51,11 @@ export default function CartPage() {
       <h1 className="h4 mb-3">Zamów produkty</h1>
 
       {error && <div className="alert alert-danger">❌ {error}</div>}
+
       {result && (
         <div className="alert alert-success">
           ✅ Zamówienie złożone. Nr: <strong>{result.orderId}</strong>, suma:{" "}
-          <strong>{result.total.toFixed(2)} zł</strong>
+          <strong>{Number(result.total ?? 0).toFixed(2)} zł</strong>
         </div>
       )}
 
@@ -107,7 +110,9 @@ export default function CartPage() {
                           onChange={(e) => setQuantity(product.id, Number(e.target.value))}
                         />
                       </td>
-                      <td className="text-end">{(product.price * quantity).toFixed(2)} zł</td>
+                      <td className="text-end">
+                        {Number(product.price * quantity).toFixed(2)} zł
+                      </td>
                       <td>
                         <button
                           className="btn btn-sm btn-outline-danger"
@@ -125,7 +130,9 @@ export default function CartPage() {
                   <td />
                   <td />
                   <td className="text-end fw-bold">Razem:</td>
-                  <td className="text-end fw-bold">{total.toFixed(2)} zł</td>
+                  <td className="text-end fw-bold">
+                    {Number(total ?? 0).toFixed(2)} zł
+                  </td>
                   <td />
                 </tr>
               </tfoot>
@@ -133,7 +140,11 @@ export default function CartPage() {
           </div>
 
           <div className="d-flex gap-2 mt-3">
-            <button className="btn btn-primary" onClick={placeOrder} disabled={placing || items.length === 0}>
+            <button
+              className="btn btn-primary"
+              onClick={placeOrder}
+              disabled={placing || items.length === 0}
+            >
               {placing ? "Składanie zamówienia…" : "Zamów"}
             </button>
             <button className="btn btn-outline-secondary" onClick={clear} disabled={!items.length}>

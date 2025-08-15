@@ -40,10 +40,10 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMINISTRATOR','PRACOWNIK')")
+//    @PreAuthorize("hasAnyRole('ADMINISTRATOR','PRACOWNIK')")
     public ResponseEntity<?> getById(@PathVariable Long id) {
         return orderRepo.findById(id)
-                .map(ResponseEntity::ok)
+                .map(o -> ResponseEntity.ok().body(o))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
