@@ -1,5 +1,5 @@
 // src/lib/axios.ts
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
 
 /**
  * Źródło URL backendu:
@@ -14,7 +14,7 @@ function getAuthToken(): string | null {
   return localStorage.getItem("token");
 }
 
-/** Ewentualne czyszczenie sesji po 401 */
+/** Wyczyść sesję po 401 i przekieruj na login */
 function clearSessionAndRedirect() {
   localStorage.removeItem("token");
   localStorage.removeItem("role");
@@ -24,77 +24,57 @@ function clearSessionAndRedirect() {
   }
 }
 
-export const api = axios.create({
+/** Domyślne nagłówki */
+const defaultHeaders = {
+  "Content-Type": "application/json",
+  Accept: "application/json",
+};
+
+/** Główna instancja API */
+export const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  // JWT leci w nagłówku Authorization, więc cookies nie są potrzebne:
   withCredentials: false,
-  // Delikatny timeout, żeby nie wisieć w nieskończoność:
   timeout: 15000,
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
+  headers: defaultHeaders,
 });
 
-/** REQUEST: dołącz Bearer token, jeśli istnieje */
+/** REQUEST: dołącz token jeśli istnieje */
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAuthToken();
-  if (token) {
-    // Ustaw tylko jeśli nie ma już ręcznie ustawionego nagłówka
-    if (!config.headers.Authorization) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-/** RESPONSE: wyloguj TYLKO przy 401; 403 i reszta — bez auto-logout */
+/** RESPONSE: auto-logout tylko przy 401 */
 api.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
     const status = err?.response?.status;
 
-    // Backend niedostępny / brak odpowiedzi — nie wylogowuj użytkownika
+    // Backend niedostępny → nie wylogowuj
     if (typeof status === "undefined") {
       return Promise.reject(err);
     }
 
     if (status === 401) {
-      // nieprawidłowy / wygasły token → wyczyść i przekieruj
       clearSessionAndRedirect();
     }
 
-    // 403 i inne statusy obsługuj lokalnie w komponentach
     return Promise.reject(err);
   }
 );
-// api.interceptors.response.use(
-//   (res) => res,
-//   (err) => {
-//     const status = err?.response?.status;
 
-//     // ❗️TYMCZASOWO: nic nie czyść ani nie przekierowuj
-//     if (status === 401) {
-//       console.warn("401 from API:", err.response?.data);
-//       return Promise.reject(err);
-//     }
-//     if (status === 403) {
-//       console.warn("403 from API (brak uprawnień):", err.response?.data);
-//       return Promise.reject(err);
-//     }
-//     return Promise.reject(err);
-//   }
-// );
+/** Instancja bez auth (np. /api/auth/login) */
+export const apiNoAuth: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: false,
+  timeout: 15000,
+  headers: defaultHeaders,
+});
 
-
-
-
-
-
-
-
-
-/** Helpery (opcjonalnie) */
+/** Helpery */
 export function setAuthToken(token: string | null) {
   if (token) {
     localStorage.setItem("token", token);
@@ -108,7 +88,9 @@ export function setUserContext(opts: { role?: string | null; username?: string |
     opts.role ? localStorage.setItem("role", opts.role) : localStorage.removeItem("role");
   }
   if (typeof opts.username !== "undefined") {
-    opts.username ? localStorage.setItem("username", opts.username) : localStorage.removeItem("username");
+    opts.username
+      ? localStorage.setItem("username", opts.username)
+      : localStorage.removeItem("username");
   }
 }
 

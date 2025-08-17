@@ -1,5 +1,7 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.OrderDto;
+import com.example.demo.dto.OrderItemDto;
 import com.example.demo.model.Client;
 import com.example.demo.model.Order;
 import com.example.demo.model.OrderItem;
@@ -10,7 +12,6 @@ import com.example.demo.repository.ProductRepository;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.transaction.Transactional;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -18,6 +19,10 @@ import java.security.Principal;
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+ * Endpointy klienta do składania i podglądu jego zamówień.
+ * Wymaga autoryzacji JWT i roli KLIENT/CLIENT ustawionej w SecurityConfig.
+ */
 @SecurityRequirement(name = "bearerAuth")
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -36,26 +41,30 @@ public class ClientOrdersController {
         this.clientRepo = clientRepo;
     }
 
+    // --------- DTO wejściowe do POST ---------
     public static class CreateOrderDto {
-        public static class Item { public Long productId; public int quantity; }
         public List<Item> items;
-        public String notes;
+        public String notes; // obecnie niewykorzystywane, ale zostawione pod rozbudowę
+        public static class Item {
+            public Long productId;
+            public int quantity;
+        }
     }
 
+    // =============== POST /api/client/orders =================
     @PostMapping
-    @PreAuthorize("hasAnyRole('KLIENT','CLIENT')")
     @Transactional
     public ResponseEntity<?> create(Principal principal, @RequestBody CreateOrderDto dto) {
         if (dto == null || dto.items == null || dto.items.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Brak pozycji zamówienia"));
         }
 
-        // 1) klient zalogowany
+        // 1) zalogowany klient
         String username = principal.getName();
         Client client = clientRepo.findByUser_Username(username)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono klienta dla użytkownika: " + username));
 
-        // 2) zamówienie
+        // 2) nagłówek zamówienia
         Order order = new Order();
         order.setClient(client);
         order.setClientName(client.getName());
@@ -65,15 +74,17 @@ public class ClientOrdersController {
         List<OrderItem> items = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
+        // 3) pozycje i stany magazynowe
         for (CreateOrderDto.Item it : dto.items) {
-            if (it.quantity <= 0) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Ilość musi być > 0"));
+            if (it == null || it.productId == null || it.quantity <= 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Nieprawidłowa pozycja zamówienia"));
             }
+
             Product p = productRepo.findById(it.productId)
                     .orElseThrow(() -> new IllegalArgumentException("Produkt " + it.productId + " nie istnieje"));
 
             if (p.getQuantity() != null && p.getQuantity() < it.quantity) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Brak stanu dla produktu: " + p.getName()));
+                return ResponseEntity.badRequest().body(Map.of("error", "Brak stanu magazynowego dla: " + p.getName()));
             }
 
             OrderItem oi = new OrderItem();
@@ -84,40 +95,83 @@ public class ClientOrdersController {
             oi.setPrice(p.getPrice());
             items.add(oi);
 
-            // stan magazynowy
+            // aktualizacja magazynu
             if (p.getQuantity() != null) {
-                p.setQuantity(p.getQuantity() - it.quantity); // zostanie zflushowane przy commit dzięki @Transactional
+                p.setQuantity(p.getQuantity() - it.quantity);
             }
 
             if (p.getPrice() != null) {
-                BigDecimal price = BigDecimal.valueOf(p.getPrice());            // <- z Double na BigDecimal
-                BigDecimal qty   = BigDecimal.valueOf(it.quantity);             // <- z int na BigDecimal
-                total = total.add(price.multiply(qty));
+                total = total.add(BigDecimal.valueOf(p.getPrice()).multiply(BigDecimal.valueOf(it.quantity)));
             }
         }
 
         order.setItems(items);
         Order saved = orderRepo.save(order);
 
-        // Zwracamy pola zgodne z typem w TS
         return ResponseEntity.status(201).body(Map.of(
                 "orderId", saved.getId(),
                 "total",   total
         ));
     }
 
+    // =============== GET /api/client/orders =================
     @GetMapping
-    @PreAuthorize("hasAnyRole('KLIENT','CLIENT')")
-    public List<Order> listOwn(Principal principal) {
-        return orderRepo.findByClient_User_Username(principal.getName());
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public List<OrderDto> listOwn(Principal principal) {
+        String username = principal.getName();
+        var orders = orderRepo.findWithItemsByClientUsername(username);
+
+        return orders.stream().map(o -> {
+            double total = o.getItems().stream()
+                    .mapToDouble(it -> (it.getPrice() != null ? it.getPrice() : 0.0) *
+                            (it.getQuantity() != null ? it.getQuantity() : 0))
+                    .sum();
+
+            var items = o.getItems().stream()
+                    .map(it -> new OrderItemDto(
+                            it.getId(),
+                            it.getProductName(),
+                            it.getPrice(),
+                            it.getQuantity()
+                    ))
+                    .toList();
+
+            return new OrderDto(
+                    o.getId(),
+                    o.getOrderDate(),
+                    o.getClientName(),
+                    o.getClientEmail(),
+                    total,
+                    items
+            );
+        }).toList();
     }
 
+    // =============== GET /api/client/orders/{id} =================
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('KLIENT','CLIENT')")
+    @Transactional(Transactional.TxType.SUPPORTS)
     public ResponseEntity<?> getOwn(@PathVariable Long id, Principal principal) {
-        return orderRepo.findByIdAndClient_User_Username(id, principal.getName())
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(404)
-                        .body(Map.of("error", "Zamówienie nie znalezione")));
+        String username = principal.getName();
+        return orderRepo.findOneWithItemsByIdAndUsername(id, username)
+                .<ResponseEntity<?>>map(o -> {
+                    double total = o.getItems().stream()
+                            .mapToDouble(it -> (it.getPrice() != null ? it.getPrice() : 0.0) *
+                                    (it.getQuantity() != null ? it.getQuantity() : 0))
+                            .sum();
+
+                    var items = o.getItems().stream()
+                            .map(it -> new OrderItemDto(
+                                    it.getId(),
+                                    it.getProductName(),
+                                    it.getPrice(),
+                                    it.getQuantity()
+                            ))
+                            .toList();
+
+                    return ResponseEntity.ok(new OrderDto(
+                            o.getId(), o.getOrderDate(), o.getClientName(), o.getClientEmail(), total, items
+                    ));
+                })
+                .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "Zamówienie nie znalezione")));
     }
 }

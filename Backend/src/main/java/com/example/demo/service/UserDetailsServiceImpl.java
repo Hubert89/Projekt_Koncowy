@@ -20,7 +20,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         // Zakładam, że user.getRole().name() zwraca: ADMINISTRATOR / PRACOWNIK / KLIENT
-        var authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
+        var authority = new SimpleGrantedAuthority("ROLE_" + user.getRole());
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())

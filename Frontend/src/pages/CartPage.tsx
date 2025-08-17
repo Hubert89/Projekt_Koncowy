@@ -1,26 +1,11 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCart } from "../cart/CartContext";
 import { api } from "../lib/axios";
 import type { CreateOrderRequest, CreateOrderResponse } from "../types/shop";
-import ProductGrid from "../components/ProductGrid";
-
-import laptopImg from "../assets/products/laptop-pro-15.png";
-import keyboardImg from "../assets/products/keyboard-red.png";
-import mouseImg from "../assets/products/mouse-bt.png";
-import monitorImg from "../assets/products/monitor-27-4k.png";
-import earbudsImg from "../assets/products/earbuds.png";
-
-const IMAGES: Record<number, { src: string; alt: string }> = {
-  1: { src: laptopImg, alt: "Laptop Pro 15 – procesor i7, 16GB RAM, 512GB SSD" },
-  2: { src: keyboardImg, alt: "Klawiatura mechaniczna – podświetlana, przełączniki Red" },
-  3: { src: mouseImg, alt: "Mysz bezprzewodowa – optyczna, Bluetooth" },
-  4: { src: monitorImg, alt: "Monitor 27 cali 4K – IPS, rozdzielczość 3840x2160" },
-  5: { src: earbudsImg, alt: "Słuchawki douszne – redukcja szumów, etui ładujące" },
-};
 
 export default function CartPage() {
   const { items, total, remove, clear, setQuantity } = useCart();
-
   const [placing, setPlacing] = useState(false);
   const [result, setResult] = useState<CreateOrderResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,13 +19,13 @@ export default function CartPage() {
         items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
       };
       const { data } = await api.post<CreateOrderResponse>("/api/client/orders", payload);
-
-      // zapisz wynik PRZED czyszczeniem koszyka
-      setResult(data); // { orderId, total }
+      setResult(data);
       clear();
     } catch (e: any) {
-      const apiErr = e?.response?.data;
-      setError(apiErr?.error || apiErr?.message || "Nie udało się złożyć zamówienia");
+      const msg = e?.response?.status === 401
+        ? "Musisz być zalogowany jako klient, by złożyć zamówienie."
+        : "Nie udało się złożyć zamówienia.";
+      setError(msg);
     } finally {
       setPlacing(false);
     }
@@ -48,112 +33,92 @@ export default function CartPage() {
 
   return (
     <div className="container py-4">
-      <h1 className="h4 mb-3">Zamów produkty</h1>
-
-      {error && <div className="alert alert-danger">❌ {error}</div>}
+      <h1 className="h4 mb-3 text-center">Zamów produkty</h1>
 
       {result && (
-        <div className="alert alert-success">
-          ✅ Zamówienie złożone. Nr: <strong>{result.orderId}</strong>, suma:{" "}
-          <strong>{Number(result.total ?? 0).toFixed(2)} zł</strong>
+        <div className="alert alert-success d-flex justify-content-between align-items-center">
+          <span>
+            ✅ Zamówienie złożone. Nr: <strong>{result.orderId}</strong>, suma:{" "}
+            <strong>{result.total.toFixed(2)} zł</strong>
+          </span>
+          <Link to="/client/orders" className="btn btn-success btn-sm">
+            Przejdź do moich zamówień
+          </Link>
         </div>
       )}
+      {error && <div className="alert alert-danger">{error}</div>}
 
       {!items.length ? (
-        <>
-          <p className="text-body-secondary">Koszyk jest pusty.</p>
-          <h2 className="h5 mt-4 mb-3">Produkty</h2>
-          <ProductGrid />
-        </>
+        <div className="text-center py-5">
+          <p>Koszyk jest pusty.</p>
+          <Link to="/client" className="btn btn-primary">
+            ← Wróć do sklepu i dodaj produkty
+          </Link>
+        </div>
       ) : (
         <>
-          <div className="table-responsive">
-            <table className="table align-middle">
-              <thead>
-                <tr>
-                  <th style={{ width: 80 }} />
-                  <th>Produkt</th>
-                  <th style={{ width: 140 }}>Ilość</th>
-                  <th style={{ width: 140 }} className="text-end">Cena</th>
-                  <th style={{ width: 80 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map(({ product, quantity }) => {
-                  const img = IMAGES[product.id];
-                  return (
-                    <tr key={product.id}>
-                      <td>
-                        {img && (
-                          <img
-                            src={img.src}
-                            alt={img.alt}
-                            width={64}
-                            height={64}
-                            loading="lazy"
-                            decoding="async"
-                            style={{ objectFit: "contain" }}
-                          />
-                        )}
-                      </td>
-                      <td>
-                        <div className="fw-semibold">{product.name}</div>
-                        <div className="small text-body-secondary">{product.description}</div>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min={1}
-                          max={product.quantity}
-                          className="form-control"
-                          value={quantity}
-                          onChange={(e) => setQuantity(product.id, Number(e.target.value))}
-                        />
-                      </td>
-                      <td className="text-end">
-                        {Number(product.price * quantity).toFixed(2)} zł
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => remove(product.id)}
-                        >
-                          Usuń
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td />
-                  <td />
-                  <td className="text-end fw-bold">Razem:</td>
-                  <td className="text-end fw-bold">
-                    {Number(total ?? 0).toFixed(2)} zł
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <ul className="list-group mb-3">
+            {items.map(({ product, quantity }) => (
+              <li
+                key={product.id}
+                className="list-group-item d-flex justify-content-between align-items-center"
+              >
+                <div className="me-3">
+                  <div className="fw-semibold">{product.name}</div>
+                  <div className="small text-body-secondary">
+                    {product.price.toFixed(2)} zł / szt.
+                  </div>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    value={quantity}
+                    min={1}
+                    onChange={(e) =>
+                      setQuantity(
+                        product.id,
+                        Math.max(1, parseInt(e.target.value || "1", 10))
+                      )
+                    }
+                    style={{ width: 80 }}
+                  />
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => remove(product.id)}
+                  >
+                    Usuń
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
 
-          <div className="d-flex gap-2 mt-3">
-            <button
-              className="btn btn-primary"
-              onClick={placeOrder}
-              disabled={placing || items.length === 0}
-            >
-              {placing ? "Składanie zamówienia…" : "Zamów"}
-            </button>
-            <button className="btn btn-outline-secondary" onClick={clear} disabled={!items.length}>
-              Wyczyść koszyk
-            </button>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <strong>Razem: {total.toFixed(2)} zł</strong>
+            <div className="d-flex gap-2">
+              <button
+                className="btn btn-primary"
+                onClick={placeOrder}
+                disabled={placing || items.length === 0}
+              >
+                {placing ? "Składanie zamówienia…" : "Zamów"}
+              </button>
+              <button
+                className="btn btn-outline-secondary"
+                onClick={clear}
+                disabled={!items.length}
+              >
+                Wyczyść koszyk
+              </button>
+              <Link to="/client/orders" className="btn btn-outline-secondary">
+                Moje zamówienia
+              </Link>
+              <Link to="/client" className="btn btn-link">
+                ← Wróć do sklepu
+              </Link>
+            </div>
           </div>
-
-          <h2 className="h5 mt-4 mb-3">Dodaj coś jeszcze</h2>
-          <ProductGrid />
         </>
       )}
     </div>

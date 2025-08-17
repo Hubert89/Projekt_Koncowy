@@ -16,6 +16,12 @@ public class JwtUtil {
     private final Key key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
 
     public String generateToken(String username, String role) {
+        long nowMs = System.currentTimeMillis();
+        Date iat = new Date(nowMs);
+        Date exp = new Date(nowMs + jwtExpirationMs); // 24h później
+
+        System.out.println("[JWT-GEN] nowMs=" + nowMs + " iat=" + iat + " exp=" + exp + " (+ms=" + jwtExpirationMs + ")");
+        System.out.println("[JWT-GEN] username=" + username + ", role=" + role);
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
@@ -29,7 +35,11 @@ public class JwtUtil {
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
+        } catch (ExpiredJwtException e) {
+            System.out.println("[JWT-VAL] Expired: " + e.getClaims().getExpiration());
+            return false;
         } catch (JwtException e) {
+            System.out.println("[JWT-VAL] Invalid: " + e.getMessage());
             return false;
         }
     }

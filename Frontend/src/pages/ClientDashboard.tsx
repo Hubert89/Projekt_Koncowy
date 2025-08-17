@@ -1,4 +1,5 @@
 import ProductGrid from "../components/ProductGrid";
+import MiniCartBar from "../components/MiniCartBar";
 
 export default function ClientDashboard() {
   return (
@@ -7,6 +8,7 @@ export default function ClientDashboard() {
         <h1 className="h4 mb-0">Sklep</h1>
         {/* tu możesz dodać link do koszyka, np. <Link to="/client/cart" className="btn btn-outline-primary">Koszyk</Link> */}
       </div>
+      <MiniCartBar />
       <ProductGrid />
     </div>
   );
