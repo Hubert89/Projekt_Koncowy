@@ -3,17 +3,20 @@ package com.example.demo.model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "products") // nazwa tabeli w DB
+@Table(name = "products")
 public class Product {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)         private String name;
-    @Column(columnDefinition = "text") private String description;
-    @Column(nullable = false)         private Double price;     // wrapper (null-safe)
-    @Column(nullable = false)         private Integer quantity; // wrapper (null-safe)
+    private String name;
+    @Column(length = 2000)
+    private String description;
+    private Double price;
+    private Integer quantity;
+
+    // NEW: URL obrazka
+    private String imageUrl;
 
     public Product() {}
 
@@ -26,16 +29,20 @@ public class Product {
     }
 
     public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public Double getPrice() { return price; }
-    public Integer getQuantity() { return quantity; }
-
     public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public Double getPrice() { return price; }
     public void setPrice(Double price) { this.price = price; }
+
+    public Integer getQuantity() { return quantity; }
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }
-
-

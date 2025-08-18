@@ -10,6 +10,7 @@ import ClientDashboard from "./pages/ClientDashboard";
 import ClientOrdersPage from "./pages/ClientOrdersPage";
 import CartPage from "./pages/CartPage";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminProductsPage from "./pages/AdminProductsPage";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 
 import { CartProvider } from "./cart/CartContext";
@@ -82,6 +83,18 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+
+{/* ADMIN: produkty */}
+<Route
+  path="/admin/products"
+  element={
+    <ProtectedRoute roles={["ADMIN"]}>
+      <AdminProductsPage />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
