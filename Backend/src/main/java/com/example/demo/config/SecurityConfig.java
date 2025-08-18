@@ -1,7 +1,7 @@
 package com.example.demo.config;
 
 import com.example.demo.security.JwtAuthFilter;
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,76 +29,68 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    // tylko JwtAuthFilter przez konstruktor (bez cyklu)
-    private final JwtAuthFilter jwtAuthFilter;
-
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
-        this.jwtAuthFilter = jwtAuthFilter;
-    }
+    @Autowired private JwtAuthFilter jwtAuthFilter;
+    @Autowired private UserDetailsService userDetailsService;
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationProvider authenticationProvider(UserDetailsService uds, PasswordEncoder encoder) {
-        var p = new DaoAuthenticationProvider();
-        p.setUserDetailsService(uds);
-        p.setPasswordEncoder(encoder);
-        return p;
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration cfg) throws Exception {
-        return cfg.getAuthenticationManager();
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   AuthenticationProvider authenticationProvider) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .cors(c -> {})
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .securityContext(sc -> sc.requireExplicitSave(false))
                 .authorizeHttpRequests(auth -> auth
+                        // swagger + login
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
-                        .requestMatchers("/api/auth/me").authenticated()
+                        // strefa klienta – własne zamówienia
+                        .requestMatchers("/api/client/**").hasRole("KLIENT")
 
-                        .requestMatchers("/api/client/**").hasAnyRole("KLIENT","CLIENT")
-
-                        .requestMatchers(HttpMethod.GET,    "/api/products/**").permitAll()
-                        .requestMatchers(HttpMethod.POST,   "/api/products/**").hasRole("ADMINISTRATOR")
-                        .requestMatchers(HttpMethod.PUT,    "/api/products/**").hasRole("ADMINISTRATOR")
+                        // produkty: publiczne GET; reszta tylko ADMIN
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/**").hasRole("ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasRole("ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.PATCH, "/api/products/**").hasRole("ADMINISTRATOR")
                         .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMINISTRATOR")
 
-                        .requestMatchers(HttpMethod.GET,   "/api/orders/**").hasAnyRole("ADMINISTRATOR","PRACOWNIK")
-                        .requestMatchers(HttpMethod.PATCH, "/api/orders/**").hasRole("ADMINISTRATOR")
+                        // zamówienia – panel pracownika
+                        .requestMatchers(HttpMethod.GET, "/api/orders/**").hasRole("PRACOWNIK")
+                        .requestMatchers(HttpMethod.PUT, "/api/orders/**").hasRole("PRACOWNIK")
+                        .requestMatchers(HttpMethod.PATCH, "/api/orders/**").hasRole("PRACOWNIK")
+                        .requestMatchers(HttpMethod.DELETE, "/api/orders/**").hasRole("PRACOWNIK")
 
+                        // wszystko inne wymaga logowania
                         .anyRequest().authenticated()
                 )
-                .exceptionHandling(e -> e
-                        .authenticationEntryPoint((rq, rs, ex) -> rs.sendError(HttpServletResponse.SC_UNAUTHORIZED))
-                        .accessDeniedHandler((rq, rs, ex) -> rs.sendError(HttpServletResponse.SC_FORBIDDEN))
-                )
-                .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
+
+    @Bean public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        var cfg = new CorsConfiguration();
+        CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(List.of("http://localhost:5173","http://localhost:8080"));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("*"));
         cfg.setAllowCredentials(true);
-        var src = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
         src.registerCorsConfiguration("/**", cfg);
         return src;
     }

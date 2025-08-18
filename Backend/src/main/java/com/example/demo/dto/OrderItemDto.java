@@ -1,3 +1,9 @@
 package com.example.demo.dto;
-public record OrderItemDto(Long id, String productName, Double price, Integer quantity) {}
 
+public record OrderItemDto(
+        Long id,
+        Long productId,
+        String productName,
+        Integer quantity,
+        Double price
+) {}
