@@ -23,6 +23,8 @@ export type OrderDto = {
   orderDate: string;
   clientName: string;
   clientEmail: string;
+  status?: string;
+  notes?: string | null;
   total: number;
   items: OrderItemDto[];
 };

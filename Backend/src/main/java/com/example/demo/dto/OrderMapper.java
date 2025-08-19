@@ -15,13 +15,15 @@ public class OrderMapper {
             double line = (it.price() != null ? it.price() : 0.0) * (it.quantity() != null ? it.quantity() : 0);
             total += line;
         }
-        Long clientId = (o.getClient() != null) ? o.getClient().getId() : null;
+        Long clientId = o.getClient() != null ? o.getClient().getId() : null;
         return new OrderDto(
                 o.getId(),
                 clientId,
                 o.getClientName(),
                 o.getClientEmail(),
                 o.getOrderDate(),
+                o.getStatus(),
+                o.getNotes(),
                 total,
                 items
         );

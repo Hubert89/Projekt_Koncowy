@@ -56,10 +56,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasRole("ADMINISTRATOR")
 
                         // zamówienia – panel pracownika
-                        .requestMatchers(HttpMethod.GET, "/api/orders/**").hasRole("PRACOWNIK")
-                        .requestMatchers(HttpMethod.PUT, "/api/orders/**").hasRole("PRACOWNIK")
-                        .requestMatchers(HttpMethod.PATCH, "/api/orders/**").hasRole("PRACOWNIK")
-                        .requestMatchers(HttpMethod.DELETE, "/api/orders/**").hasRole("PRACOWNIK")
+                        .requestMatchers(HttpMethod.GET,    "/api/orders/**").hasAnyRole("PRACOWNIK","ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.PUT,    "/api/orders/**").hasAnyRole("PRACOWNIK","ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.PATCH,  "/api/orders/**").hasAnyRole("PRACOWNIK","ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/orders/**").hasAnyRole("PRACOWNIK","ADMINISTRATOR")
+
 
                         // wszystko inne wymaga logowania
                         .anyRequest().authenticated()

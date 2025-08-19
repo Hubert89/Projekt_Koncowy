@@ -15,7 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/orders")
-@PreAuthorize("hasRole('PRACOWNIK')")
+@PreAuthorize("hasAnyRole('PRACOWNIK','ADMINISTRATOR')")
 public class OrderController {
 
     private final OrderRepository orderRepo;
@@ -26,14 +26,14 @@ public class OrderController {
         this.mapper = mapper;
     }
 
-    // READ: lista aktywnych (bez soft-deleted)
+    // GET: lista wszystkich zamówień (bez usuniętych), najnowsze na górze
     @GetMapping
     public List<OrderDto> listAll() {
-        return orderRepo.findAllWithItems()
-                .stream().map(mapper::toDto).toList();
+        List<Order> orders = orderRepo.findAllWithItems();
+        return orders.stream().map(mapper::toDto).toList();
     }
 
-    // READ: pojedyncze aktywne (bez soft-deleted)
+    // GET: pojedyncze zamówienie (bez usuniętych)
     @GetMapping("/{id}")
     public OrderDto getOne(@PathVariable Long id) {
         Order o = orderRepo.findByIdWithItems(id)
@@ -41,46 +41,46 @@ public class OrderController {
         return mapper.toDto(o);
     }
 
-    // UPDATE (full) – pracownik może np. zmienić status/notatki
+    // PUT: pełna podmiana pól edytowalnych przez pracownika (status/notes)
     @PutMapping("/{id}")
     public OrderDto replace(@PathVariable Long id, @RequestBody UpdateOrderRequest body) {
         Order o = orderRepo.findByIdWithItems(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-
+        o.setStatus(body.status() != null ? body.status() : o.getStatus());
+        o.setNotes(body.notes()); // może być null – oznacza wyczyszczenie
         orderRepo.save(o);
         return mapper.toDto(o);
     }
 
-    // UPDATE (partial)
+    // PATCH: częściowa modyfikacja
     @PatchMapping("/{id}")
     public OrderDto patch(@PathVariable Long id, @RequestBody Map<String, Object> patch) {
         Order o = orderRepo.findByIdWithItems(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
-
+        if (patch.containsKey("status")) {
+            Object v = patch.get("status");
+            if (v != null) o.setStatus(v.toString());
+        }
+        if (patch.containsKey("notes")) {
+            Object v = patch.get("notes");
+            o.setNotes(v != null ? v.toString() : null);
+        }
         orderRepo.save(o);
         return mapper.toDto(o);
     }
 
-    // DELETE (SOFT) – oznacza deleted=true, deleted_at=now()
+    // DELETE: soft-delete
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void softDelete(@PathVariable Long id) {
         Order o = orderRepo.findByIdWithItemsIncludingDeleted(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-
         if (o.isDeleted()) return; // idempotentnie
-
-        // (opcjonalnie) odwróć rezerwacje/zwroty:
-        // inventoryService.release(o);
-        // paymentService.refundIfPaid(o);
-
         o.softDelete();
         orderRepo.save(o);
     }
 
-    // DTO do PUT
+    // DTO do PUT/PATCH
     public record UpdateOrderRequest(String status, String notes) {}
 }

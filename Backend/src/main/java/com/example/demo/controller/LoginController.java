@@ -1,43 +1,54 @@
 package com.example.demo.controller;
 
-import com.example.demo.model.User;
-import com.example.demo.repository.UserRepository;
-import com.example.demo.util.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.demo.security.JwtService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = {"http://localhost:5173"}) // jeśli testujesz z Vite
 public class LoginController {
 
-    @Autowired private AuthenticationManager authenticationManager;
-    @Autowired private JwtUtil jwtUtil;
-    @Autowired private UserRepository userRepository;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
+
+    public LoginController(AuthenticationManager authenticationManager, JwtService jwtService) {
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+    }
 
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody Map<String, String> credentials) {
-        String username = credentials.get("username");
-        String password = credentials.get("password");
+    public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        String password = body.get("password");
 
-        authenticationManager.authenticate(
+        Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, password)
         );
 
-        User user = userRepository.findByUsername(username).orElseThrow();
+        UserDetails user = (UserDetails) auth.getPrincipal();
+        String token = jwtService.generateToken(user);
 
-        // ⬇️ kluczowa zmiana: do JWT przekazujemy STRING (role.name())
-        String token = jwtUtil.generateToken(username, user.getRole().name());
+        return ResponseEntity.ok(Map.of(
+                "username", user.getUsername(),
+                "authorities", user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList(),
+                "token", token
+        ));
+    }
 
-        // ⬇️ w odpowiedzi zwracamy STRING, nie enum
-        return Map.of(
-                "token", token,
-                "username", username,
-                "role", user.getRole().name()
-        );
+    @GetMapping("/me")
+    public ResponseEntity<?> me(@AuthenticationPrincipal UserDetails user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(Map.of(
+                "username", user.getUsername(),
+                "authorities", user.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList()
+        ));
     }
 }

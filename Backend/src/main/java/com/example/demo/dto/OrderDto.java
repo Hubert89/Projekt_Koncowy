@@ -9,6 +9,8 @@ public record OrderDto(
         String clientName,
         String clientEmail,
         LocalDate orderDate,
+        String status,
+        String notes,
         Double total,
         List<OrderItemDto> items
 ) {}

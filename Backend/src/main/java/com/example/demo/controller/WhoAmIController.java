@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api")
 public class WhoAmIController {
-    @GetMapping("/me")
+    @GetMapping("/whoami")
     public Map<String, Object> me(java.security.Principal p) {
         var auth = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();

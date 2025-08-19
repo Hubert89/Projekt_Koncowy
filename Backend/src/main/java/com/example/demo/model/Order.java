@@ -30,6 +30,13 @@ public class Order {
     @JsonManagedReference
     private List<OrderItem> items = new ArrayList<>();
 
+    // --- STATUS + NOTATKI (edycja przez pracownika) ---
+    @Column(name = "status", nullable = false)
+    private String status = "NEW"; // prosty status jako String, np. NEW/PAID/SHIPPED/CANCELLED
+
+    @Column(name = "notes")
+    private String notes;
+
     // --- SOFT DELETE ---
     @Column(name = "deleted", nullable = false)
     private boolean deleted = false;
@@ -38,11 +45,10 @@ public class Order {
     private Instant deletedAt;
 
     // --- CTOR ---
-    public Order() {
-    }
+    public Order() {}
 
     // --- HELPERS ---
-    /** Oznacza zamówienie jako usunięte (soft-delete). */
+    /** Oznacz zamówienie jako usunięte (soft-delete). */
     public void softDelete() {
         this.deleted = true;
         this.deletedAt = Instant.now();
@@ -50,6 +56,7 @@ public class Order {
 
     // --- GET / SET ---
     public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
     public String getClientName() { return clientName; }
     public void setClientName(String clientName) { this.clientName = clientName; }
@@ -65,6 +72,12 @@ public class Order {
 
     public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) { this.items = items; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
 
     public boolean isDeleted() { return deleted; }
     public void setDeleted(boolean deleted) { this.deleted = deleted; }
