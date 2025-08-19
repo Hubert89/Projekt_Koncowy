@@ -15,7 +15,7 @@ export default function PublicOnlyRoute({ children }: Props) {
 
   // Zalogowany — wywal z /login/*
   const role = norm(user.role);
-  if (role === "ADMIN") return <Navigate to="/admin" replace />;
+  if (role === "ADMIN") return <Navigate to="/admin/products" replace />;
   if (role === "EMPLOYEE") return <Navigate to="/employee" replace />;
   return <Navigate to="/client/cart" replace />;
 }

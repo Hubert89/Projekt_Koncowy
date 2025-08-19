@@ -22,19 +22,21 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
-  async function onUpload(id: number, file: File) {
-    const fd = new FormData();
-    fd.append("file", file);
-    try {
-      await api.post(`/api/products/${id}/image`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      // Refresh one row - simplest: refetch all
-      await fetchAll();
-    } catch (e:any) {
-      alert(e?.response?.data?.message || "Nie udało się wgrać obrazka.");
-    }
+  
+  async function onUploadImage(id: number, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    const res = await api.post(`/api/products/${id}/image`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    // zaktualizuj produkt na liście
+    setProducts(prev => prev.map(p => (p.id === id ? res.data : p)));
+  } catch (e: any) {
+    alert(e?.response?.data?.message || "Nie udało się wgrać obrazu.");
   }
+}
+
 
 
   const filtered = useMemo(() => {
@@ -218,25 +220,29 @@ export default function AdminProductsPage() {
                   <td className="text-truncate" style={{ maxWidth: 420 }}>{p.description}</td>
                   <td>
                     {p.imageUrl ? (
-                      <img src={p.imageUrl} alt={p.name} style={{maxWidth:80, maxHeight:60, objectFit:'cover', borderRadius:6}} />
+                      <img
+                        src={(p.imageUrl.startsWith("http") ? p.imageUrl : `http://localhost:8080${p.imageUrl}`)}
+                        alt={p.name}
+                        style={{ width: 72, height: 48, objectFit: "cover", borderRadius: 6 }}
+                      />
                     ) : (
                       <span className="text-body-secondary">brak</span>
                     )}
-                    <div className="mt-2 d-flex gap-2">
-                      <input type="file" accept="image/*" onChange={async (e)=>{
-                        const file = e.target.files?.[0];
-                        if(!file) return;
-                        const form = new FormData();
-                        form.append('file', file);
-                        try {
-                          const res = await api.post<Product>(`/api/products/${p.id}/image`, form, { headers: { 'Content-Type': 'multipart/form-data' }});
-                          setProducts(prev => prev.map(x => x.id===p.id ? res.data : x));
-                        } catch(err:any){
-                          alert(err?.response?.data?.message || 'Błąd uploadu obrazka');
-                        } finally { e.currentTarget.value = ''; }
-                      }} />
+
+                    <div className="mt-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) onUploadImage(p.id, f);
+                          // wyczyść input, żeby dało się wgrać ten sam plik drugi raz
+                          e.currentTarget.value = "";
+                        }}
+                      />
                     </div>
                   </td>
+
                   <td className="text-end">
                     <div className="btn-group">
                       <button className="btn btn-sm btn-outline-secondary" onClick={() => onEdit(p)}>

@@ -37,7 +37,7 @@ export default function Navbar() {
               <NavLink to="/client/orders" className="nav-link">Moje zamówienia</NavLink>
             </li>
             </>)}
-            {user?.role === "ADMIN" && (
+            {user?.role !== "ADMIN" && (
               <li className="nav-item">
                 <NavLink to="/admin" className="nav-link">Panel admina</NavLink>
               </li>
