@@ -1,24 +1,20 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
-import ProtectedRoute from "./auth/ProtectedRoute";
-import PublicOnlyRoute from "./auth/PublicOnlyRoute";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './auth/AuthContext';
+import ProtectedRoute from './auth/ProtectedRoute';
+import PublicOnlyRoute from './auth/PublicOnlyRoute';
 
-import Navbar from "./components/Navbar";
+import Navbar from './components/Navbar';
 
-import LoginPage from "./pages/LoginPage";
-import ClientDashboard from "./pages/ClientDashboard";
-import ClientOrdersPage from "./pages/ClientOrdersPage";
-import CartPage from "./pages/CartPage";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminProductsPage from "./pages/AdminProductsPage";
-import EmployeeDashboard from "./pages/EmployeeDashboard";
+import LoginPage from './pages/LoginPage';
+import ClientDashboard from './pages/ClientDashboard';
+import ClientOrdersPage from './pages/ClientOrdersPage';
+import CartPage from './pages/CartPage';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminProductsPage from './pages/AdminProductsPage';
+import EmployeeDashboard from './pages/EmployeeDashboard';
 
-import { CartProvider } from "./cart/CartContext";
-import "./App.css";
-
-function HomeRedirect() {
-  return <Navigate to="/client" replace />;
-}
+import { CartProvider } from './cart/CartContext';
+import PanelCenter from "./layouts/PanelCenter";
 
 export default function App() {
   return (
@@ -27,76 +23,67 @@ export default function App() {
         <CartProvider>
           <Navbar />
           <Routes>
-            {/* Landing */}
-            <Route path="/" element={<HomeRedirect />} />
-
-            {/* Logowanie – dostępne tylko dla niezalogowanych */}
             <Route
-              path="/login/:role"
+              path="/login"
               element={
                 <PublicOnlyRoute>
                   <LoginPage />
                 </PublicOnlyRoute>
               }
             />
-
-            {/* Panele z rolami */}
             <Route
               path="/admin"
               element={
-                <ProtectedRoute roles={["ADMIN"]}>
+                <ProtectedRoute roles={['ADMIN']}>
                   <AdminDashboard />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/employee"
+              path="/admin/products"
               element={
-                <ProtectedRoute roles={["EMPLOYEE", "ADMIN"]}>
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminProductsPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/employee/*"
+              element={
+                <ProtectedRoute roles={['EMPLOYEE','ADMIN']}>
                   <EmployeeDashboard />
                 </ProtectedRoute>
               }
             />
 
-            {/* Strefa klienta */}
             <Route
               path="/client"
               element={
-                <ProtectedRoute roles={["CLIENT", "ADMIN"]}>
+                <ProtectedRoute>
                   <ClientDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/client/cart"
-              element={
-                <ProtectedRoute roles={["CLIENT", "ADMIN"]}>
-                  <CartPage />
                 </ProtectedRoute>
               }
             />
             <Route
               path="/client/orders"
               element={
-                <ProtectedRoute roles={["CLIENT", "ADMIN"]}>
+                <ProtectedRoute>
                   <ClientOrdersPage />
                 </ProtectedRoute>
               }
             />
 
+            <Route
+              path="/client/cart"
+              element={
+                <ProtectedRoute>
+                  <CartPage />
+                </ProtectedRoute>
+              }
+            />
 
-{/* ADMIN: produkty */}
-<Route
-  path="/admin/products"
-  element={
-    <ProtectedRoute roles={["ADMIN"]}>
-      <AdminProductsPage />
-    </ProtectedRoute>
-  }
-/>
-
-
-            {/* Fallback */}
+            <Route path="/" element={<Navigate to="/client" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </CartProvider>

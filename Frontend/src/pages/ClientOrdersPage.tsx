@@ -1,59 +1,73 @@
 import { useEffect, useState } from "react";
-import { api } from "../lib/axios";
-import type { OrderDto } from "../types/shop";
+import api from "../lib/axios";
+
+type OrderItemDto = {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+};
+
+type OrderDto = {
+  id: number;
+  clientId: number;
+  clientName: string;
+  clientEmail: string;
+  orderDate: string;
+  status: string;
+  notes?: string | null;
+  total: number;
+  items: OrderItemDto[];
+};
 
 export default function ClientOrdersPage() {
   const [orders, setOrders] = useState<OrderDto[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const { data } = await api.get<OrderDto[]>("/api/client/orders");
-        setOrders(data);
+        const res = await api.get<OrderDto[]>("/api/client/orders");
+        if (!alive) return;
+        setOrders(res.data);
       } catch (e: any) {
-        setError(
-          e?.response?.status === 401
-            ? "Zaloguj się, aby zobaczyć zamówienia."
-            : "Nie udało się pobrać zamówień."
-        );
-      } finally {
-        setLoading(false);
+        setError("Nie udało się pobrać zamówień.");
+        console.error("GET api/client/orders failed:", e?.response?.status, e?.response?.data);
       }
     })();
+    return () => { alive = false; };
   }, []);
 
-  if (loading) return <div>Ładowanie…</div>;
-  if (error) return <div className="text-red-400">{error}</div>;
-  if (!orders.length) return <div>Brak zamówień.</div>;
+  if (error) return <p className="container text-danger py-4">{error}</p>;
 
   return (
-    <div className="container py-4">
-      <h2 className="h4 mb-3 text-center">Moje zamówienia</h2>
-
-      {/* >>> najważniejsze: list-unstyled usuwa kropki z zewnętrznej listy */}
-      <ul className="list-unstyled">
-        {orders.map((o) => (
-          <li key={o.id} className="rounded-lg p-4 border mb-3">
-            <div className="fw-medium">Zamówienie #{o.id}</div>
-            <div className="small text-body-secondary">
-              {new Date(o.orderDate).toLocaleDateString()} • {o.clientEmail}
-            </div>
-
-            {/* >>> i tutaj też bez kropek */}
-            <ul className="list-unstyled mt-2 small ps-0">
-              {o.items.map((i) => (
-                <li key={i.id}>
-                  {i.productName} × {i.quantity} — {i.price?.toFixed(2)} zł
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-2 fw-semibold">Suma: {o.total.toFixed(2)} zł</div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section className="container py-4">
+      <h2>Moje zamówienia</h2>
+      {orders.length === 0 ? (
+        <p className="text-body-secondary">Brak zamówień.</p>
+      ) : (
+        <ul className="list-group">
+          {orders.map((o) => (
+            <li key={o.id} className="list-group-item">
+              <div className="d-flex justify-content-between">
+                <span>
+                  #{o.id} • {new Date(o.orderDate).toLocaleDateString()} • {o.status}
+                </span>
+                <strong>{o.total.toFixed(2)} zł</strong>
+              </div>
+              <ul className="mt-2">
+                {o.items.map((item) => (
+                  <li key={item.id}>
+                    {item.productName} × {item.quantity} ({item.price.toFixed(2)} zł)
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

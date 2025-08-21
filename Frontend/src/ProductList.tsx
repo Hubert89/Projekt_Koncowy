@@ -1,42 +1,36 @@
 import { useEffect, useState } from "react";
-import { api } from "./lib/axios";
-
-type Product = { id: number; name: string; price: number };
+import { apiNoAuth } from "./lib/axios";
+import ProductGrid from "./components/ProductGrid";
+import type { Product } from "./types/shop";
 
 export default function ProductList() {
-  const [data, setData] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<Product[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
+    let alive = true;
     (async () => {
       try {
-        const { data } = await api.get<Product[]>("/api/products");
-        if (mounted) setData(data);
+        // DOPASUJ jeśli backend ma inną ścieżkę (np. /shop/products)
+        // ...
+        const res = await apiNoAuth.get<Product[]>("/api/products");
+        // ...
+
+        if (!alive) return;
+        setItems(res.data);
       } catch (e: any) {
-        setError(e?.response?.data?.message || "Błąd pobierania danych");
-      } finally {
-        setLoading(false);
+        setError("Nie udało się pobrać produktów.");
+        console.error("GET /products failed:", e?.response?.status, e?.response?.data);
       }
     })();
-    return () => { mounted = false; };
+    return () => { alive = false; };
   }, []);
 
-  if (loading) return <p>⏳ Wczytywanie…</p>;
-  if (error) return <p style={{ color: "tomato" }}>❌ {error}</p>;
-  if (!data.length) return <p>Brak produktów.</p>;
-
   return (
-    <div>
-      <h3>📦 Lista produktów</h3>
-      <ul>
-        {data.map(p => (
-          <li key={p.id}>
-            {p.name} — {p.price.toFixed(2)} zł
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section className="container py-4">
+      <h2>Sklep</h2>
+      {error && <p className="text-danger mt-3">{error}</p>}
+      {!error && <ProductGrid products={items} />}
+    </section>
   );
 }

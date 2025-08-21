@@ -1,98 +1,64 @@
-import { useState } from "react";
-import { NavLink, useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
-
-const roles = [
-  { key: "client",   label: "KLIENT" },
-  { key: "admin",    label: "ADMIN" },
-  { key: "employee", label: "PRACOWNIK" },
-] as const;
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext';
 
 export default function LoginPage() {
-  const { role: roleParam = "client" } =
-    useParams<{ role: "client" | "admin" | "employee" }>();
-  const title = roles.find(r => r.key === roleParam)?.label ?? "KLIENT";
-
-  const [username, setU] = useState("");
-  const [password, setP] = useState("");
+  const [tab, setTab] = useState<'CLIENT'|'ADMIN'|'EMPLOYEE'>('CLIENT'); // tylko UI
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-
+  const navigate = useNavigate();
   const { login } = useAuth();
-  const nav = useNavigate();
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
-      const r = await login(username, password); // "CLIENT" | "ADMIN" | "EMPLOYEE"
-      // Nawigacja nie jest konieczna (PublicOnlyRoute i tak przekieruje),
-      // ale można ją zostawić dla szybszego UX:
-      if (r === "ADMIN") nav("/admin", { replace: true });
-      else if (r === "EMPLOYEE") nav("/employee", { replace: true });
-      else nav("/client/cart", { replace: true });
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Błąd logowania");
+      await login(username, password);
+      // przekierowanie zostanie zrobione przez PublicOnlyRoute przy wejściu na /login,
+      // ale na wszelki wypadek zrobimy domyślne:
+      navigate('/client', { replace: true });
+    } catch (err: any) {
+      console.error('Login error', err?.response || err);
+      setError(err?.response?.data?.message || 'Błąd logowania');
     }
   };
 
+  const Tab = ({value, label}:{value:'CLIENT'|'ADMIN'|'EMPLOYEE';label:string}) => (
+    <button type="button"
+      className={'btn ' + (tab===value ? 'btn-primary' : 'btn-outline-primary')}
+      onClick={() => setTab(value)}>{label}</button>
+  );
+
   return (
-    <main style={{
-      minHeight: "100vh", display: "grid", placeItems: "center",
-      padding: "1rem", width: "100%", boxSizing: "border-box"
-    }}>
-      <div style={{ width: "100%", maxWidth: 520 }}>
-        <ul className="nav nav-pills justify-content-center mb-3">
-          {roles.map(r => (
-            <li className="nav-item" key={r.key}>
-              <NavLink
-                to={`/login/${r.key}`}
-                className={({ isActive }) => "nav-link " + (isActive ? "active" : "text-secondary")}
-              >
-                {r.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
+    <main className="container py-5" style={{maxWidth: 760}}>
+      <h1 className="h3 text-center mb-4">Logowanie — {tab}</h1>
+      <div className="d-flex justify-content-center gap-2 mb-3">
+        <Tab value="CLIENT" label="KLIENT" />
+        <Tab value="ADMIN" label="ADMIN" />
+        <Tab value="EMPLOYEE" label="PRACOWNIK" />
+      </div>
 
-        <div className="card shadow-lg border-0">
-          <div className="card-body p-4 p-lg-5">
-            <h1 className="h3 mb-4 text-center">
-              Logowanie — <span className="fw-bold">{title}</span>
-            </h1>
-
-            {error && <div className="alert alert-danger py-2">❌ {error}</div>}
-
-            <form onSubmit={onSubmit}>
-              <div className="form-floating mb-3">
-                <input
-                  className="form-control" id="username" placeholder="Użytkownik"
-                  value={username} onChange={e => setU(e.target.value)} required
-                />
-                <label htmlFor="username">Użytkownik</label>
-              </div>
-
-              <div className="form-floating mb-3">
-                <input
-                  type="password" className="form-control" id="password" placeholder="Hasło"
-                  value={password} onChange={e => setP(e.target.value)} required
-                />
-                <label htmlFor="password">Hasło</label>
-              </div>
-
-              <button className="btn btn-primary w-100 py-2" type="submit">
-                Zaloguj
-              </button>
-            </form>
-
-            <p className="text-center text-body-secondary small mt-3 mb-0">
-              Podaj dane konta odpowiednie dla wybranej roli.
-            </p>
+      <form onSubmit={submit} className="card shadow-sm">
+        <div className="card-body p-4">
+          <div className="mb-3">
+            <label className="form-label">Użytkownik</label>
+            <input className="form-control" value={username} onChange={e=>setUsername(e.target.value)} />
           </div>
+          <div className="mb-3">
+            <label className="form-label">Hasło</label>
+            <input type="password" className="form-control" value={password} onChange={e=>setPassword(e.target.value)} />
+          </div>
+          {error && <div className="alert alert-danger py-2">{error}</div>}
+          <button type="submit" className="btn btn-primary w-100">Zaloguj</button>
+          <p className="text-center text-body-secondary small mt-3 mb-0">
+            Podaj dane konta odpowiednie dla wybranej roli.
+          </p>
         </div>
+      </form>
 
-        <div className="text-center mt-3">
-          <NavLink to="/" className="link-secondary">← Wróć do strony głównej</NavLink>
-        </div>
+      <div className="text-center mt-3">
+        <NavLink to="/" className="link-secondary">← Wróć do strony głównej</NavLink>
       </div>
     </main>
   );

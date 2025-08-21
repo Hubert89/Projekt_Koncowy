@@ -1,6 +1,6 @@
 export type Role = "ADMIN" | "CLIENT" | "EMPLOYEE";
 
-export type User = {
+export type UserSession = {
   id?: number;
   username: string;
   role: Role;

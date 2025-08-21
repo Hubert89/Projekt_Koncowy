@@ -1,6 +1,18 @@
-
 import { useEffect, useMemo, useState } from "react";
 import api from "../lib/axios";
+
+// Sprzęg z backendem: obsługa zarówno quantity, jak i stock + wsparcie uploadu obrazów
+// Zachowana stylistyka Bootstrap jak na Twoim screenie
+
+type ProductApi = {
+  id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  quantity?: number;   // wariant 1 w backendzie
+  stock?: number;      // wariant 2 w backendzie
+  imageUrl?: string | null;
+};
 
 type Product = {
   id: number;
@@ -15,6 +27,19 @@ type FormState = Omit<Product, "id"> & { id?: number };
 
 const emptyForm: FormState = { name: "", description: "", price: 0, quantity: 0 };
 
+const BASE_URL = (api as any)?.defaults?.baseURL || "";
+
+function normalize(p: ProductApi): Product {
+  return {
+    id: p.id,
+    name: p.name,
+    description: (p.description ?? "") as string,
+    price: p.price,
+    quantity: typeof p.quantity === "number" ? p.quantity : (p.stock ?? 0),
+    imageUrl: p.imageUrl ?? null,
+  };
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,22 +47,19 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
-  
+
   async function onUploadImage(id: number, file: File) {
-  const fd = new FormData();
-  fd.append("file", file);
-  try {
-    const res = await api.post(`/api/products/${id}/image`, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    // zaktualizuj produkt na liście
-    setProducts(prev => prev.map(p => (p.id === id ? res.data : p)));
-  } catch (e: any) {
-    alert(e?.response?.data?.message || "Nie udało się wgrać obrazu.");
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await api.post<ProductApi>(`/api/products/${id}/image`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setProducts(prev => prev.map(p => (p.id === id ? normalize(res.data) : p)));
+    } catch (e: any) {
+      alert(e?.response?.data?.message || "Nie udało się wgrać obrazu.");
+    }
   }
-}
-
-
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -50,8 +72,9 @@ export default function AdminProductsPage() {
   async function fetchAll() {
     try {
       setLoading(true);
-      const res = await api.get<Product[]>("/api/products");
-      setProducts(res.data);
+      const res = await api.get<ProductApi[] | { content: ProductApi[] }>("/api/products");
+      const raw = Array.isArray(res.data) ? res.data : (res.data as any)?.content ?? [];
+      setProducts(raw.map(normalize));
       setError(null);
     } catch (e:any) {
       setError(e?.response?.data?.message || "Nie udało się pobrać produktów.");
@@ -87,11 +110,12 @@ export default function AdminProductsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = {
+      const payload: any = {
         name: form.name.trim(),
         description: form.description?.trim() || "",
         price: Number(form.price),
         quantity: Number(form.quantity),
+        stock: Number(form.quantity), // dla backendu ze 'stock'
       };
       if (!form.name.trim()) {
         alert("Nazwa jest wymagana.");
@@ -99,11 +123,11 @@ export default function AdminProductsPage() {
         return;
       }
       if (form.id != null) {
-        const res = await api.put<Product>(`/api/products/${form.id}`, payload);
-        setProducts(prev => prev.map(p => (p.id === form.id ? res.data : p)));
+        const res = await api.put<ProductApi>(`/api/products/${form.id}`, payload);
+        setProducts(prev => prev.map(p => (p.id === form.id ? normalize(res.data) : p)));
       } else {
-        const res = await api.post<Product>("/api/products", payload);
-        setProducts(prev => [res.data, ...prev]);
+        const res = await api.post<ProductApi>("/api/products", payload);
+        setProducts(prev => [normalize(res.data), ...prev]);
       }
       setForm(emptyForm);
     } catch (e:any) {
@@ -117,7 +141,7 @@ export default function AdminProductsPage() {
     <div className="container py-3">
       <h2 className="mb-3">Zarządzanie produktami (ADMIN)</h2>
 
-      {/* Form */}
+      {/* Formularz */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
           <h5 className="card-title">{form.id ? "Edytuj produkt" : "Dodaj produkt"}</h5>
@@ -188,7 +212,7 @@ export default function AdminProductsPage() {
         />
       </div>
 
-      {/* Table */}
+      {/* Tabela */}
       <div className="table-responsive shadow-sm">
         <table className="table table-striped align-middle">
           <thead>
@@ -199,17 +223,16 @@ export default function AdminProductsPage() {
               <th>Ilość</th>
               <th>Opis</th>
               <th>Obraz</th>
-              <th>Obraz</th>
               <th style={{ width: 160 }}></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6}>Ładowanie...</td></tr>
+              <tr><td colSpan={7}>Ładowanie...</td></tr>
             ) : error ? (
-              <tr><td colSpan={6} className="text-danger">{error}</td></tr>
+              <tr><td colSpan={7} className="text-danger">{error}</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={6}>Brak produktów.</td></tr>
+              <tr><td colSpan={7}>Brak produktów.</td></tr>
             ) : (
               filtered.map(p => (
                 <tr key={p.id}>
@@ -221,7 +244,7 @@ export default function AdminProductsPage() {
                   <td>
                     {p.imageUrl ? (
                       <img
-                        src={(p.imageUrl.startsWith("http") ? p.imageUrl : `http://localhost:8080${p.imageUrl}`)}
+                        src={(p.imageUrl.startsWith("http") ? p.imageUrl : `${BASE_URL}${p.imageUrl}`)}
                         alt={p.name}
                         style={{ width: 72, height: 48, objectFit: "cover", borderRadius: 6 }}
                       />
@@ -236,8 +259,7 @@ export default function AdminProductsPage() {
                         onChange={(e) => {
                           const f = e.target.files?.[0];
                           if (f) onUploadImage(p.id, f);
-                          // wyczyść input, żeby dało się wgrać ten sam plik drugi raz
-                          e.currentTarget.value = "";
+                          e.currentTarget.value = ""; // reset, by móc wgrać ten sam plik ponownie
                         }}
                       />
                     </div>
