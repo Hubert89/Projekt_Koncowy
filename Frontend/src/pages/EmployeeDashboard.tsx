@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/axios";
 
+// ⬇️ Jeśli backend wystawia /api/orders, podmień stałą na ten URL
+const EMP_ORDERS_BASE = "/api/orders";
+
+// --- types ---
+type OrderItemRow = {
+  id: number;
+  productId?: number | null;
+  productName?: string | null;
+  quantity: number;
+  price: number; // cena jednostkowa
+};
+
 type OrderRow = {
   id: number;
   orderDate: any;
@@ -8,7 +20,9 @@ type OrderRow = {
   clientEmail?: string | null;
   status?: string | null;
   total?: number | null;
-  deleted?: boolean | null;   // ⬅️ ważne: info o soft delete
+  deleted?: boolean | null;
+  // jeśli backend już zwraca pozycje na liście – też obsłużymy:
+  items?: OrderItemRow[];
 };
 
 // --- utils ---
@@ -40,15 +54,11 @@ function formatPLN(n?: number | null): string {
   }).format(n) + " zł";
 }
 
-// tłumaczenie statusów na PL
 function statusPL(s?: string | null): string {
   if (!s) return "—";
   const norm = s.toUpperCase();
   if (norm === "NEW") return "Nowe";
-  // dodasz kolejne mapowania wg potrzeb:
-  // if (norm === "PAID") return "Opłacone";
-  // if (norm === "SHIPPED") return "Wysłane";
-  return s; // jeśli backend zwraca już po polsku
+  return s;
 }
 
 // --- component ---
@@ -57,15 +67,21 @@ export default function EmployeeOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // rozwinięte wiersze i cache pozycji
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [itemsCache, setItemsCache] = useState<Record<number, OrderItemRow[]>>({});
+  const [itemsLoading, setItemsLoading] = useState<Record<number, boolean>>({});
+  const [itemsError, setItemsError] = useState<Record<number, string | null>>({});
+
   async function fetchOrders() {
     try {
       setLoading(true);
-      const res = await api.get<any>("/api/orders");
+      const res = await api.get<any>(EMP_ORDERS_BASE);
       const raw = res.data;
       const list: OrderRow[] = Array.isArray(raw) ? raw : raw?.content ?? [];
       setRows(list);
     } catch (e: any) {
-      console.error("GET /api/orders failed:", e?.response?.status, e?.response?.data);
+      console.error("GET orders failed:", e?.response?.status, e?.response?.data);
       setError("Nie udało się pobrać listy zamówień.");
     } finally {
       setLoading(false);
@@ -75,13 +91,47 @@ export default function EmployeeOrdersPage() {
   async function softDelete(id: number) {
     if (!window.confirm("Czy na pewno chcesz oznaczyć to zamówienie jako usunięte?")) return;
     try {
-      await api.patch(`/api/orders/${id}/delete`);
-      // Po usunięciu odświeżamy listę – wiersz zostaje, ale ze statusem „Usunięte”
+      await api.patch(`${EMP_ORDERS_BASE}/${id}/delete`);
       await fetchOrders();
     } catch (e: any) {
       console.error("PATCH delete failed:", e?.response?.status, e?.response?.data);
       alert("Nie udało się usunąć zamówienia.");
     }
+  }
+
+  async function ensureItemsLoaded(orderId: number) {
+    // jeśli już mamy wiersz z items lub w cache – nie dociągamy
+    const row = rows.find(r => r.id === orderId);
+    if ((row && row.items && row.items.length) || itemsCache[orderId]) return;
+
+    try {
+      setItemsLoading(prev => ({ ...prev, [orderId]: true }));
+      setItemsError(prev => ({ ...prev, [orderId]: null }));
+
+      const res = await api.get<OrderRow>(`${EMP_ORDERS_BASE}/${orderId}`);
+      const withItems = res.data?.items ?? [];
+      // cache
+      setItemsCache(prev => ({ ...prev, [orderId]: withItems }));
+      // wstrzyknięcie items także do rows (żeby drugi raz nie pytać)
+      setRows(prev =>
+        prev.map(r => (r.id === orderId ? { ...r, items: withItems } : r))
+      );
+    } catch (e: any) {
+      console.error("GET order details failed:", e?.response?.status, e?.response?.data);
+      setItemsError(prev => ({ ...prev, [orderId]: "Nie udało się pobrać pozycji zamówienia." }));
+    } finally {
+      setItemsLoading(prev => ({ ...prev, [orderId]: false }));
+    }
+  }
+
+  function toggleDetails(orderId: number) {
+    setExpanded(prev => {
+      const next = { ...prev, [orderId]: !prev[orderId] };
+      return next;
+    });
+    // jeśli rozwijamy – dociągnij pozycje (on-demand)
+    const willExpand = !expanded[orderId];
+    if (willExpand) ensureItemsLoaded(orderId);
   }
 
   useEffect(() => {
@@ -125,44 +175,101 @@ export default function EmployeeOrdersPage() {
               <tbody>
                 {sorted.map((o) => {
                   const displayStatus = o.deleted ? "Usunięte" : statusPL(o.status);
+                  const rowItems = o.items && o.items.length ? o.items : itemsCache[o.id];
+
                   return (
-                    <tr key={o.id} className="hover:bg-gray-800">
-                      <td className="py-2 px-4 border-b border-gray-700">{o.id}</td>
-                      <td className="py-2 px-4 border-b border-gray-700">
-                        {formatOrderDate(o.orderDate)}
-                      </td>
-                      <td className="py-2 px-4 border-b border-gray-700">
-                        {o.clientName || o.clientEmail || "—"}
-                      </td>
-                      <td className="py-2 px-4 border-b border-gray-700">
-                        <span
-                          className={
-                            o.deleted
-                              ? "inline-block rounded px-2 py-0.5 text-sm bg-red-800/40 border border-red-700"
-                              : "inline-block rounded px-2 py-0.5 text-sm bg-gray-700/40 border border-gray-600"
-                          }
-                        >
-                          {displayStatus}
-                        </span>
-                      </td>
-                      <td className="py-2 px-4 border-b border-gray-700">
-                        {formatPLN(o.total)}
-                      </td>
-                      <td className="py-2 px-4 border-b border-gray-700">
-                        <button
-                          onClick={() => softDelete(o.id)}
-                          disabled={!!o.deleted}
-                          className={`px-3 py-1 rounded text-white ${
-                            o.deleted
-                              ? "bg-gray-600 cursor-not-allowed"
-                              : "bg-red-600 hover:bg-red-700"
-                          }`}
-                          title={o.deleted ? "Już usunięte" : "Usuń"}
-                        >
-                          Usuń
-                        </button>
-                      </td>
-                    </tr>
+                    <>
+                      <tr key={o.id} className="hover:bg-gray-800">
+                        <td className="py-2 px-4 border-b border-gray-700">{o.id}</td>
+                        <td className="py-2 px-4 border-b border-gray-700">
+                          {formatOrderDate(o.orderDate)}
+                        </td>
+                        <td className="py-2 px-4 border-b border-gray-700">
+                          {o.clientName || o.clientEmail || "—"}
+                        </td>
+                        <td className="py-2 px-4 border-b border-gray-700">
+                          <span
+                            className={
+                              o.deleted
+                                ? "inline-block rounded px-2 py-0.5 text-sm bg-red-800/40 border border-red-700"
+                                : "inline-block rounded px-2 py-0.5 text-sm bg-gray-700/40 border border-gray-600"
+                            }
+                          >
+                            {displayStatus}
+                          </span>
+                        </td>
+                        <td className="py-2 px-4 border-b border-gray-700">
+                          {formatPLN(o.total)}
+                        </td>
+                        <td className="py-2 px-4 border-b border-gray-700 space-x-2">
+                          <button
+                            onClick={() => toggleDetails(o.id)}
+                            className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700"
+                          >
+                            {expanded[o.id] ? "Ukryj" : "Szczegóły"}
+                          </button>
+                          <button
+                            onClick={() => softDelete(o.id)}
+                            disabled={!!o.deleted}
+                            className={`px-3 py-1 rounded text-white ${
+                              o.deleted
+                                ? "bg-gray-600 cursor-not-allowed"
+                                : "bg-red-600 hover:bg-red-700"
+                            }`}
+                            title={o.deleted ? "Już usunięte" : "Usuń"}
+                          >
+                            Usuń
+                          </button>
+                        </td>
+                      </tr>
+
+                      {expanded[o.id] && (
+                        <tr>
+                          <td colSpan={6} className="p-0 border-b border-gray-700">
+                            <div className="p-3 bg-gray-900/40">
+                              {itemsLoading[o.id] && <div>Ładowanie pozycji…</div>}
+                              {itemsError[o.id] && (
+                                <div className="text-red-400">{itemsError[o.id]}</div>
+                              )}
+                              {!itemsLoading[o.id] && !itemsError[o.id] && (
+                                <>
+                                  {rowItems && rowItems.length ? (
+                                    <table className="table-auto w-full">
+                                      <thead>
+                                        <tr className="text-left">
+                                          <th className="py-1 px-2">#</th>
+                                          <th className="py-1 px-2">Produkt</th>
+                                          <th className="py-1 px-2">Ilość</th>
+                                          <th className="py-1 px-2">Cena</th>
+                                          <th className="py-1 px-2">Suma</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {rowItems.map((it, idx) => (
+                                          <tr key={it.id ?? idx} className="border-t border-gray-800">
+                                            <td className="py-1 px-2">{idx + 1}</td>
+                                            <td className="py-1 px-2">
+                                              {it.productName ?? (it.productId ? `ID ${it.productId}` : "—")}
+                                            </td>
+                                            <td className="py-1 px-2">{it.quantity}</td>
+                                            <td className="py-1 px-2">{formatPLN(it.price)}</td>
+                                            <td className="py-1 px-2">
+                                              {formatPLN((it.price ?? 0) * (it.quantity ?? 0))}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  ) : (
+                                    <em>Brak pozycji.</em>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   );
                 })}
                 {sorted.length === 0 && (
