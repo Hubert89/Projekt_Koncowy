@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -26,10 +27,10 @@ public class OrderController {
         this.mapper = mapper;
     }
 
-    // GET: lista wszystkich zamówień (bez usuniętych), najnowsze na górze
+    // GET: lista wszystkich zamówień (obecnie bez usuniętych – jak w repo)
     @GetMapping
     public List<OrderDto> listAll() {
-        List<Order> orders = orderRepo.findAllWithItems();
+        List<Order> orders = orderRepo.findAllWithItemsIncludingDeleted();
         return orders.stream().map(mapper::toDto).toList();
     }
 
@@ -41,25 +42,27 @@ public class OrderController {
         return mapper.toDto(o);
     }
 
-    // PUT: pełna podmiana pól edytowalnych przez pracownika (status/notes)
+    // DTO do PUT/PATCH (przywrócone)
+    public record UpdateOrderRequest(String status, String notes) {}
+
+    // PUT: pełna podmiana pól (status/notes)
     @PutMapping("/{id}")
     public OrderDto replace(@PathVariable Long id, @RequestBody UpdateOrderRequest body) {
         Order o = orderRepo.findByIdWithItems(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        o.setStatus(body.status() != null ? body.status() : o.getStatus());
-        o.setNotes(body.notes()); // może być null – oznacza wyczyszczenie
+        if (body.status() != null) o.setStatus(body.status());
+        o.setNotes(body.notes()); // może być null – czyści notatki
         orderRepo.save(o);
         return mapper.toDto(o);
     }
 
-    // PATCH: częściowa modyfikacja
+    // PATCH: częściowa modyfikacja (status/notes)
     @PatchMapping("/{id}")
     public OrderDto patch(@PathVariable Long id, @RequestBody Map<String, Object> patch) {
         Order o = orderRepo.findByIdWithItems(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (patch.containsKey("status")) {
-            Object v = patch.get("status");
-            if (v != null) o.setStatus(v.toString());
+        if (patch.containsKey("status") && patch.get("status") != null) {
+            o.setStatus(patch.get("status").toString());
         }
         if (patch.containsKey("notes")) {
             Object v = patch.get("notes");
@@ -69,26 +72,27 @@ public class OrderController {
         return mapper.toDto(o);
     }
 
-    // DELETE: soft-delete
+    // DELETE: soft delete (ustawia też status "Usunięte")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void softDelete(@PathVariable Long id) {
-        Order o = orderRepo.findByIdWithItemsIncludingDeleted(id)
+        Order order = orderRepo.findByIdWithItemsIncludingDeleted(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (o.isDeleted()) return; // idempotentnie
-        o.softDelete();
-        orderRepo.save(o);
+
+        if (order.isDeleted()) return; // idempotentnie
+
+        order.setDeleted(true);
+        order.setDeletedAt(Instant.now());
+        order.setStatus("Usunięte");
+        orderRepo.save(order);
     }
 
-    // DTO do PUT/PATCH
-    public record UpdateOrderRequest(String status, String notes) {}
-
-    // dodatkowy alias dla kompatybilności z frontem PATCH /{id}/delete
+    // Alias PATCH /{id}/delete (ta sama logika)
     @PatchMapping("/{id}/delete")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Transactional
     public void softDeleteAlias(@PathVariable Long id) {
-        softDelete(id); // wywołaj ten sam kod co DELETE
+        softDelete(id);
     }
 }

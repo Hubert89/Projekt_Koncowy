@@ -8,6 +8,7 @@ type OrderRow = {
   clientEmail?: string | null;
   status?: string | null;
   total?: number | null;
+  deleted?: boolean | null;   // ⬅️ ważne: info o soft delete
 };
 
 // --- utils ---
@@ -39,6 +40,17 @@ function formatPLN(n?: number | null): string {
   }).format(n) + " zł";
 }
 
+// tłumaczenie statusów na PL
+function statusPL(s?: string | null): string {
+  if (!s) return "—";
+  const norm = s.toUpperCase();
+  if (norm === "NEW") return "Nowe";
+  // dodasz kolejne mapowania wg potrzeb:
+  // if (norm === "PAID") return "Opłacone";
+  // if (norm === "SHIPPED") return "Wysłane";
+  return s; // jeśli backend zwraca już po polsku
+}
+
 // --- component ---
 export default function EmployeeOrdersPage() {
   const [rows, setRows] = useState<OrderRow[]>([]);
@@ -64,7 +76,7 @@ export default function EmployeeOrdersPage() {
     if (!window.confirm("Czy na pewno chcesz oznaczyć to zamówienie jako usunięte?")) return;
     try {
       await api.patch(`/api/orders/${id}/delete`);
-      // Po usunięciu odświeżamy listę
+      // Po usunięciu odświeżamy listę – wiersz zostaje, ale ze statusem „Usunięte”
       await fetchOrders();
     } catch (e: any) {
       console.error("PATCH delete failed:", e?.response?.status, e?.response?.data);
@@ -79,66 +91,92 @@ export default function EmployeeOrdersPage() {
   const sorted = [...rows].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
 
   return (
-     <main 
-     style={{
-      minHeight: "100vh",       // pełny ekran
-      display: "grid",          // siatka
-      justifyContent: "center",  
-      alignItems: "start",
-      rowGap: "0.75rem", 
-      padding: "1rem",
-      width: "100vw",           // pełna szerokość okna
-      boxSizing: "border-box",
-     }}>
-    <div className="container mx-auto px-6 py-6">
-      <h1 className="text-3xl font-bold mb-6">Panel pracownika</h1>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        justifyContent: "center",
+        alignItems: "start",
+        rowGap: "0.75rem",
+        padding: "1rem",
+        width: "100vw",
+        boxSizing: "border-box",
+      }}
+    >
+      <div className="container mx-auto px-6 py-6">
+        <h1 className="text-3xl font-bold mb-6">Panel pracownika</h1>
 
-      {loading && <div>Ładowanie…</div>}
-      {error && <div className="text-red-400">{error}</div>}
+        {loading && <div>Ładowanie…</div>}
+        {error && <div className="text-red-400">{error}</div>}
 
-      {!loading && !error && (
-        <div className="overflow-x-auto">
-          <table className="w-full max-w-6xl border border-gray-700 rounded-lg">
-            <thead className="bg-gray-800">
-              <tr className="text-left">
-                <th className="py-2 px-4 border-b border-gray-600">#</th>
-                <th className="py-2 px-4 border-b border-gray-600">Data</th>
-                <th className="py-2 px-4 border-b border-gray-600">Klient</th>
-                <th className="py-2 px-4 border-b border-gray-600">Status</th>
-                <th className="py-2 px-4 border-b border-gray-600">Suma</th>
-                <th className="py-2 px-4 border-b border-gray-600">Akcje</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((o) => (
-                <tr key={o.id} className="hover:bg-gray-800">
-                  <td className="py-2 px-4 border-b border-gray-700">{o.id}</td>
-                  <td className="py-2 px-4 border-b border-gray-700">{formatOrderDate(o.orderDate)}</td>
-                  <td className="py-2 px-4 border-b border-gray-700">{o.clientName || o.clientEmail || "—"}</td>
-                  <td className="py-2 px-4 border-b border-gray-700">{o.status ?? "—"}</td>
-                  <td className="py-2 px-4 border-b border-gray-700">{formatPLN(o.total)}</td>
-                  <td className="py-2 px-4 border-b border-gray-700">
-                    <button
-                      onClick={() => softDelete(o.id)}
-                      className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
-                    >
-                      Usuń
-                    </button>
-                  </td>
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            <table className="w-full max-w-6xl border border-gray-700 rounded-lg">
+              <thead className="bg-gray-800">
+                <tr className="text-left">
+                  <th className="py-2 px-4 border-b border-gray-600">#</th>
+                  <th className="py-2 px-4 border-b border-gray-600">Data</th>
+                  <th className="py-2 px-4 border-b border-gray-600">Klient</th>
+                  <th className="py-2 px-4 border-b border-gray-600">Status</th>
+                  <th className="py-2 px-4 border-b border-gray-600">Suma</th>
+                  <th className="py-2 px-4 border-b border-gray-600">Akcje</th>
                 </tr>
-              ))}
-              {sorted.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center opacity-70">
-                    Brak zamówień do wyświetlenia.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {sorted.map((o) => {
+                  const displayStatus = o.deleted ? "Usunięte" : statusPL(o.status);
+                  return (
+                    <tr key={o.id} className="hover:bg-gray-800">
+                      <td className="py-2 px-4 border-b border-gray-700">{o.id}</td>
+                      <td className="py-2 px-4 border-b border-gray-700">
+                        {formatOrderDate(o.orderDate)}
+                      </td>
+                      <td className="py-2 px-4 border-b border-gray-700">
+                        {o.clientName || o.clientEmail || "—"}
+                      </td>
+                      <td className="py-2 px-4 border-b border-gray-700">
+                        <span
+                          className={
+                            o.deleted
+                              ? "inline-block rounded px-2 py-0.5 text-sm bg-red-800/40 border border-red-700"
+                              : "inline-block rounded px-2 py-0.5 text-sm bg-gray-700/40 border border-gray-600"
+                          }
+                        >
+                          {displayStatus}
+                        </span>
+                      </td>
+                      <td className="py-2 px-4 border-b border-gray-700">
+                        {formatPLN(o.total)}
+                      </td>
+                      <td className="py-2 px-4 border-b border-gray-700">
+                        <button
+                          onClick={() => softDelete(o.id)}
+                          disabled={!!o.deleted}
+                          className={`px-3 py-1 rounded text-white ${
+                            o.deleted
+                              ? "bg-gray-600 cursor-not-allowed"
+                              : "bg-red-600 hover:bg-red-700"
+                          }`}
+                          title={o.deleted ? "Już usunięte" : "Usuń"}
+                        >
+                          Usuń
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {sorted.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-6 text-center opacity-70">
+                      Brak zamówień do wyświetlenia.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

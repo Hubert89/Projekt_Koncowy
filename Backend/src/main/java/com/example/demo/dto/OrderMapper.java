@@ -25,6 +25,7 @@ public class OrderMapper {
                 o.getStatus(),
                 o.getNotes(),
                 total,
+                o.isDeleted(),
                 items
         );
     }

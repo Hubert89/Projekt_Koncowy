@@ -12,5 +12,6 @@ public record OrderDto(
         String status,
         String notes,
         Double total,
+        boolean deleted,
         List<OrderItemDto> items
 ) {}

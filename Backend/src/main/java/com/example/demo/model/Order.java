@@ -32,7 +32,7 @@ public class Order {
 
     // --- STATUS + NOTATKI (edycja przez pracownika) ---
     @Column(name = "status", nullable = false)
-    private String status = "NEW"; // prosty status jako String, np. NEW/PAID/SHIPPED/CANCELLED
+    private String status = "Nowe"; // prosty status jako String, np. NEW/PAID/SHIPPED/CANCELLED
 
     @Column(name = "notes")
     private String notes;
