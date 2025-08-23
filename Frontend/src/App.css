@@ -81,15 +81,5 @@ body { min-height: 100vh; }
   max-width: 760px; /* szerokość karty panelu */
 }
 
-.page-grid{
-  min-height: 100vh;
-  display: grid;
-  justify-items: center; /* wyśrodkowanie w poziomie */
-  align-items: start;    /* przyklejone do góry */
-  width: 100%;           /* NIE 100vw, żeby nie było poziomego scrolla */
-  box-sizing: border-box;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
 
 

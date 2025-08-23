@@ -83,4 +83,12 @@ public class OrderController {
 
     // DTO do PUT/PATCH
     public record UpdateOrderRequest(String status, String notes) {}
+
+    // dodatkowy alias dla kompatybilności z frontem PATCH /{id}/delete
+    @PatchMapping("/{id}/delete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Transactional
+    public void softDeleteAlias(@PathVariable Long id) {
+        softDelete(id); // wywołaj ten sam kod co DELETE
+    }
 }
