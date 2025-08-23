@@ -138,6 +138,17 @@ export default function AdminProductsPage() {
   }
 
   return (
+     <main 
+     style={{
+      minHeight: "100vh",       // pełny ekran
+      display: "grid",          // siatka
+      justifyContent: "center",  
+      alignItems: "start",
+      rowGap: "0.75rem", 
+      padding: "1rem",
+      width: "100vw",           // pełna szerokość okna
+      boxSizing: "border-box",
+     }}>
     <div className="container py-3">
       <h2 className="mb-3">Zarządzanie produktami (ADMIN)</h2>
 
@@ -282,5 +293,6 @@ export default function AdminProductsPage() {
         </table>
       </div>
     </div>
+    </main>
   );
 }

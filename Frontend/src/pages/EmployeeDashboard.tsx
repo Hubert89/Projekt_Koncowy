@@ -79,6 +79,17 @@ export default function EmployeeOrdersPage() {
   const sorted = [...rows].sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
 
   return (
+     <main 
+     style={{
+      minHeight: "100vh",       // pełny ekran
+      display: "grid",          // siatka
+      justifyContent: "center",  
+      alignItems: "start",
+      rowGap: "0.75rem", 
+      padding: "1rem",
+      width: "100vw",           // pełna szerokość okna
+      boxSizing: "border-box",
+     }}>
     <div className="container mx-auto px-6 py-6">
       <h1 className="text-3xl font-bold mb-6">Panel pracownika</h1>
 
@@ -128,5 +139,6 @@ export default function EmployeeOrdersPage() {
         </div>
       )}
     </div>
+    </main>
   );
 }

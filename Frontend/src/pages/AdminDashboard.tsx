@@ -1,3 +1,6 @@
+import { Navigate } from "react-router-dom";
+
 export default function AdminDashboard() {
-  return <div style={{ padding: 24 }}><h2>Panel Administratora</h2></div>;
+  // od razu przenosi na listę produktów
+  return <Navigate to="/admin/products" replace />;
 }

@@ -43,9 +43,20 @@ export default function ClientOrdersPage() {
   if (error) return <p className="container text-danger py-4">{error}</p>;
 
   return (
-    <section className="container py-4">
+    <main 
+     style={{
+      minHeight: "100vh",       // pełny ekran
+      display: "grid",          // siatka
+      justifyContent: "center",  
+      alignItems: "start",
+      rowGap: "0.75rem", 
+      padding: "1rem",
+      width: "100vw",           // pełna szerokość okna
+      boxSizing: "border-box",
+     }}>
+    <section className="container py-4" style={{ maxWidth: 1100, width: "100vw"}}>
       <h2>Moje zamówienia</h2>
-      {orders.length === 0 ? (
+      {orders.length ===0 ? (
         <p className="text-body-secondary">Brak zamówień.</p>
       ) : (
         <ul className="list-group">
@@ -69,5 +80,6 @@ export default function ClientOrdersPage() {
         </ul>
       )}
     </section>
+    </main>
   );
 }

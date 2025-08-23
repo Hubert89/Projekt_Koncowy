@@ -31,33 +31,44 @@ export default function LoginPage() {
   );
 
   return (
-    <main className="container py-5" style={{maxWidth: 760}}>
-      <h1 className="h3 text-center mb-4">Logowanie — {tab}</h1>
-      <div className="d-flex justify-content-center gap-2 mb-3">
+    <main 
+     style={{
+      minHeight: "100vh",       // pełny ekran
+      display: "grid",          // siatka
+      justifyContent: "center",  
+      alignItems: "start",
+      rowGap: "0.75rem", 
+      padding: "1rem",
+      width: "100vw",           // pełna szerokość okna
+      boxSizing: "border-box",
+     }}>
+    <div className="container pt-2 pb-1" style={{maxWidth: 760}}>
+      <h1 className="h3 text-center mb-2">Logowanie — {tab}</h1>
+      <div className="d-flex justify-content-center gap-2 mb-2">
         <Tab value="CLIENT" label="KLIENT" />
         <Tab value="ADMIN" label="ADMIN" />
         <Tab value="EMPLOYEE" label="PRACOWNIK" />
       </div>
-
-      <form onSubmit={submit} className="card shadow-sm">
-        <div className="card-body p-4">
-          <div className="mb-3">
+    </div>
+      <form onSubmit={submit} className="card shadow-sm mt-2">
+        <div className="card-body p-3">
+          <div className="mb-2">
             <label className="form-label">Użytkownik</label>
             <input className="form-control" value={username} onChange={e=>setUsername(e.target.value)} />
           </div>
-          <div className="mb-3">
+          <div className="mb-2">
             <label className="form-label">Hasło</label>
             <input type="password" className="form-control" value={password} onChange={e=>setPassword(e.target.value)} />
           </div>
           {error && <div className="alert alert-danger py-2">{error}</div>}
           <button type="submit" className="btn btn-primary w-100">Zaloguj</button>
-          <p className="text-center text-body-secondary small mt-3 mb-0">
+          <p className="text-center text-body-secondary small mt-2 mb-0">
             Podaj dane konta odpowiednie dla wybranej roli.
           </p>
         </div>
       </form>
 
-      <div className="text-center mt-3">
+      <div className="text-center mt-2">
         <NavLink to="/" className="link-secondary">← Wróć do strony głównej</NavLink>
       </div>
     </main>

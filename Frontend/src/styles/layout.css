@@ -1,0 +1,74 @@
+/* Global reset potrzebny do poprawnego centrowania */
+html, body, #root { height: 100%; }
+body { margin: 0; }
+
+/* Szkielet aplikacji */
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.app-main {
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* Strona = pełna szerokość, tylko odsuwamy od krawędzi */
+.app-page {
+  width: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* >>> KLUCZ: jedna kolumna wyśrodkowana, do której wpadają WSZYSTKIE widoki <<< */
+.center-rail {
+  display: grid;
+  /* Jedyna kolumna ma max 1100px i jest wyśrodkowana */
+  grid-template-columns: minmax(0, 1100px);
+  justify-content: center;   /* wyśrodkowanie poziome kolumny */
+  width: 100%;
+}
+
+/* Wariant węższy – np. dla /login */
+.center-rail.narrow {
+  grid-template-columns: minmax(0, 760px);
+}
+
+/* Drobne ułatwienia, żeby karty i tabele wyglądały schludnie */
+.center-rail .card {
+  margin-left: auto;
+  margin-right: auto;
+}
+.center-rail table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+/* --- Centering helpers (global) --- */
+
+/* Idealny środek ekranu (pion + poziom) */
+.center-screen {
+  min-height: 100vh;         /* pełne okno */
+  display: grid;             /* najprostsze centrowanie */
+  place-items: center;       /* poziom + pion */
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Szerokość maksymalna bloku wewnątrz (formularze/login) */
+.center-box {
+  width: 100%;
+  max-width: 520px;          /* możesz zmienić np. na 600px */
+}
+
+
+/* wspólny tor na środku */
+.center-rail {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 760px;    /* zmień na 1100px, jeśli chcesz szersze */
+  width: 100%;
+  padding: 0 1rem;     /* trochę odstępu od krawędzi na małych ekranach */
+  box-sizing: border-box;
+}

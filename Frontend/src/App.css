@@ -1,3 +1,18 @@
+
+.app-content {
+  min-height: calc(100vh - 56px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.app-content > * {
+  width: 100%;
+  max-width: 760px;
+}
+
+
 /* lekkie wyrównanie tła i spacingu */
 body { min-height: 100vh; }
 
@@ -53,3 +68,28 @@ body { min-height: 100vh; }
 .read-the-docs {
   color: #888;
 }
+
+.panel-wrapper {
+  min-height: calc(100vh - 56px); /* odejmujemy navbar (~56px) */
+  display: flex;
+  justify-content: center;  /* poziomo */
+  align-items: center;      /* pionowo */
+  padding: 2rem 1rem;       /* trochę luzu */
+}
+.panel-card {
+  width: 100%;
+  max-width: 760px; /* szerokość karty panelu */
+}
+
+.page-grid{
+  min-height: 100vh;
+  display: grid;
+  justify-items: center; /* wyśrodkowanie w poziomie */
+  align-items: start;    /* przyklejone do góry */
+  width: 100%;           /* NIE 100vw, żeby nie było poziomego scrolla */
+  box-sizing: border-box;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+

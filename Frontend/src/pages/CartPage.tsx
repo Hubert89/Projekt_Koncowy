@@ -32,6 +32,17 @@ export default function CartPage() {
   };
 
   return (
+    <main 
+     style={{
+      minHeight: "100vh",       // pełny ekran
+      display: "grid",          // siatka
+      justifyContent: "center",  
+      alignItems: "start",
+      rowGap: "0.75rem", 
+      padding: "1rem",
+      width: "100vw",           // pełna szerokość okna
+      boxSizing: "border-box",
+     }}>
     <div className="container py-4">
       <h1 className="h4 mb-3 text-center">Zamów produkty</h1>
 
@@ -122,5 +133,6 @@ export default function CartPage() {
         </>
       )}
     </div>
+    </main>
   );
 }
