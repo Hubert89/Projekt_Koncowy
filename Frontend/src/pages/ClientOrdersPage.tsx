@@ -18,6 +18,7 @@ type OrderDto = {
   status: string;
   notes?: string | null;
   total: number;
+  deleted?: boolean;
   items: OrderItemDto[];
 };
 

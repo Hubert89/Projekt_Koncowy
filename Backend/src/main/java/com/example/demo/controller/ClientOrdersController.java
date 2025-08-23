@@ -52,7 +52,7 @@ public class ClientOrdersController {
     @GetMapping
     public List<OrderDto> listOwn(Principal principal) {
         var username = principal.getName();
-        var orders = orderRepo.findAllByUsernameWithItems(username);
+        var orders = orderRepo.findAllByUsernameWithItemsIncludingDeleted(username);
         return orders.stream().map(mapper::toDto).toList();
     }
 
@@ -60,7 +60,7 @@ public class ClientOrdersController {
     @GetMapping("/{id}")
     public OrderDto getOwn(@PathVariable Long id, Principal principal) {
         var username = principal.getName();
-        Order o = orderRepo.findByIdAndUsernameWithItems(id, username)
+        Order o = orderRepo.findByIdAndUsernameWithItemsIncludingDeleted(id, username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return mapper.toDto(o);
     }

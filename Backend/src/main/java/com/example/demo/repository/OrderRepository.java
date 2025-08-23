@@ -66,4 +66,24 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         where o.id = :id and u.username = :username and o.deleted = false
     """)
     Optional<Order> findByIdAndUsernameWithItems(@Param("id") Long id, @Param("username") String username);
+
+    @Query("""
+  select distinct o from Order o
+  left join fetch o.items i
+  join o.client c
+  join c.user u
+  where u.username = :username
+  order by o.id desc
+""")
+    List<Order> findAllByUsernameWithItemsIncludingDeleted(@Param("username") String username);
+
+    @Query("""
+  select o from Order o
+  left join fetch o.items i
+  join o.client c
+  join c.user u
+  where o.id = :id and u.username = :username
+""")
+    Optional<Order> findByIdAndUsernameWithItemsIncludingDeleted(@Param("id") Long id, @Param("username") String username);
+
 }
