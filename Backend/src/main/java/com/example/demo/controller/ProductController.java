@@ -26,7 +26,7 @@ public class ProductController {
     // === READ ALL ===
     @GetMapping
     public List<Product> all() {
-        return productRepo.findAll();
+        return productRepo.findAllByOrderByIdAsc();
     }
 
     // === READ ONE ===

@@ -93,7 +93,7 @@ export default function ProductGrid() {
                     src={imgSrc}
                     alt={getProductAlt(p)}
                     className="card-img-top"
-                    style={{ maxHeight: 240, objectFit: "cover" }}
+                    style={{ maxHeight: 240, objectFit: "contain" }}
                     loading="lazy"
                   />
                 )}
