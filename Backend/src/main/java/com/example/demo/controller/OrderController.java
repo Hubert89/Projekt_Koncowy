@@ -5,11 +5,14 @@ import com.example.demo.dto.OrderMapper;
 import com.example.demo.model.Order;
 import com.example.demo.repository.OrderRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional; // <-- SPRING
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -42,13 +45,19 @@ public class OrderController {
         return mapper.toDto(order);
     }
 
-    // PATCH: soft delete (oznaczenie jako usunięte)
+    // PATCH: soft delete (oznaczenie jako usunięte) — ZAPIS DO DB
     @PatchMapping("/{id}/delete")
-    public void softDelete(@PathVariable Long id) {
+    @Transactional
+    public ResponseEntity<String> softDelete(@PathVariable Long id) {
         Order o = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
         o.setDeleted(true);
+        // jeśli w encji masz Instant — zmień na Instant.now()
         o.setDeletedAt(Instant.now());
-        orderRepo.save(o);
+        o.setStatus("Usunięte");
+
+        orderRepo.saveAndFlush(o); // natychmiastowy UPDATE
+        return ResponseEntity.ok("updated=1");
     }
 }

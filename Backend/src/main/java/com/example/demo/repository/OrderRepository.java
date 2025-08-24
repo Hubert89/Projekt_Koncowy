@@ -1,10 +1,13 @@
 package com.example.demo.repository;
 
 import com.example.demo.model.Order;
+import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,4 +58,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
         where o.id = :id
     """)
     Optional<Order> findByIdWithItems(@Param("id") Long id);
+
+    // ====== SOFT DELETE (aktualizuje też status w DB) ==========================
+    @Modifying
+    @Transactional
+    @Query(
+            value = """
+        update Order o
+           set o.deleted   = true,
+               o.deletedAt = :ts,
+               o.status    = 'Usunięte'
+         where o.id        = :id
+        """,
+            nativeQuery = true)
+    int softDelete(@Param("id") Long id, @Param("ts") LocalDateTime ts);
 }

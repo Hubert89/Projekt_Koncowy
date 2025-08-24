@@ -15,6 +15,7 @@ public class OrderMapper {
             double line = (it.price() != null ? it.price() : 0.0) * (it.quantity() != null ? it.quantity() : 0);
             total += line;
         }
+        String status = o.isDeleted() ? "Usunięte" : o.getStatus();
         Long clientId = o.getClient() != null ? o.getClient().getId() : null;
         return new OrderDto(
                 o.getId(),
@@ -22,7 +23,7 @@ public class OrderMapper {
                 o.getClientName(),
                 o.getClientEmail(),
                 o.getOrderDate(),
-                o.getStatus(),
+                status,
                 o.getNotes(),
                 total,
                 o.isDeleted(),
