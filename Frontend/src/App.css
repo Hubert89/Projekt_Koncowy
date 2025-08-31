@@ -70,7 +70,7 @@ body { min-height: 100vh; }
 }
 
 .panel-wrapper {
-  min-height: calc(100vh - 56px); /* odejmujemy navbar (~56px) */
+  min-height: calc(100vh - 56px); /* odejmuję navbar (~56px) */
   display: flex;
   justify-content: center;  /* poziomo */
   align-items: center;      /* pionowo */

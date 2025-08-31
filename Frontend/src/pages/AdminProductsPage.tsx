@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../lib/axios";
 
 // Sprzęg z backendem: obsługa zarówno quantity, jak i stock + wsparcie uploadu obrazów
-// Zachowana stylistyka Bootstrap jak na Twoim screenie
+// Zachowana stylistyka Bootstrap jak na screenie
 
 type ProductApi = {
   id: number;

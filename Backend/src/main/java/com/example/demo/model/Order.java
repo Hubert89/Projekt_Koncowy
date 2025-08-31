@@ -48,7 +48,7 @@ public class Order {
     public Order() {}
 
     // --- HELPERS ---
-    /** Oznacz zamówienie jako usunięte (soft-delete). */
+    /** Oznaczam zamówienie jako usunięte (soft-delete). */
     public void softDelete() {
         this.deleted = true;
         this.deletedAt = Instant.now();

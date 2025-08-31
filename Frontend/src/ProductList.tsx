@@ -11,7 +11,7 @@ export default function ProductList() {
     let alive = true;
     (async () => {
       try {
-        // DOPASUJ jeśli backend ma inną ścieżkę (np. /shop/products)
+        // DOPASUJE jeśli backend ma inną ścieżkę (np. /shop/products)
         // ...
         const res = await apiNoAuth.get<Product[]>("/api/products");
         // ...

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/axios";
 
-// ⬇️ Jeśli backend wystawia /api/orders, podmień stałą na ten URL
+// ⬇️ Jeśli backend wystawia /api/orders, terzeba podmienić stałą na ten URL
 const EMP_ORDERS_BASE = "/api/orders";
 
 // --- types ---
@@ -21,7 +21,7 @@ type OrderRow = {
   status?: string | null;
   total?: number | null;
   deleted?: boolean | null;
-  // jeśli backend już zwraca pozycje na liście – też obsłużymy:
+  // jeśli backend już zwraca pozycje na liście – też zostanie obsłużone:
   items?: OrderItemRow[];
 };
 
@@ -100,7 +100,7 @@ export default function EmployeeOrdersPage() {
   }
 
   async function ensureItemsLoaded(orderId: number) {
-    // jeśli już mamy wiersz z items lub w cache – nie dociągamy
+    // jeśli już są wiersze z items lub w cache – nie dociągam
     const row = rows.find(r => r.id === orderId);
     if ((row && row.items && row.items.length) || itemsCache[orderId]) return;
 
@@ -129,7 +129,7 @@ export default function EmployeeOrdersPage() {
       const next = { ...prev, [orderId]: !prev[orderId] };
       return next;
     });
-    // jeśli rozwijamy – dociągnij pozycje (on-demand)
+    // jeśli rozwijam – dociągam pozycję (on-demand)
     const willExpand = !expanded[orderId];
     if (willExpand) ensureItemsLoaded(orderId);
   }

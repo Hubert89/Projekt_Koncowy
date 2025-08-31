@@ -16,7 +16,7 @@ export default function LoginPage() {
     try {
       await login(username, password);
       // przekierowanie zostanie zrobione przez PublicOnlyRoute przy wejściu na /login,
-      // ale na wszelki wypadek zrobimy domyślne:
+      // ale na wszelki wypadek robię domyślne:
       navigate('/client', { replace: true });
     } catch (err: any) {
       console.error('Login error', err?.response || err);

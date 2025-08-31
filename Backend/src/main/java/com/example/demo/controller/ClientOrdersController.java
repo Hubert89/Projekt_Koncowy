@@ -119,11 +119,11 @@ public class ClientOrdersController {
             total += p.getPrice() * it.quantity();
         }
 
-        // jeżeli w Order masz `@OneToMany(cascade = CascadeType.ALL, mappedBy = "order", orphanRemoval = true)`
+        // jeżeli w Order mam `@OneToMany(cascade = CascadeType.ALL, mappedBy = "order", orphanRemoval = true)`
         // to wystarczy podpiąć kolekcję:
         try { order.setItems(items); } catch (Exception e) { /* jeśli nie ma settera, dołóż add */ }
         for (var oi : items) {
-            // na wszelki wypadek zwiąż obustronnie, gdyby brakowało settera kolekcji
+            // na wszelki wypadek związuję obustronnie, gdyby brakowało settera kolekcji
             oi.setOrder(order);
         }
 
@@ -133,7 +133,7 @@ public class ClientOrdersController {
                 .body(new CreateOrderResponse(order.getId(), total));
     }
 
-    // --- Lokalne DTO do POST (żeby nie ruszać Twoich istniejących klas)
+    // --- Lokalne DTO do POST (żeby nie ruszać istniejących klas)
     public record CreateOrderRequest(
             @NotEmpty List<Item> items,
             String notes

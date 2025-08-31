@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string) => {
     const res = await apiNoAuth.post('/api/auth/login', { username, password });
 
-    // akceptujemy różne kształty odpowiedzi
+    // akceptuj różne kształty odpowiedzi
     const token: string = res.data?.token || res.data?.accessToken || res.data?.jwt;
     const roleRaw = res.data?.role ?? res.data?.roles ?? res.data?.authorities;
     const role = normalizeRole(roleRaw);

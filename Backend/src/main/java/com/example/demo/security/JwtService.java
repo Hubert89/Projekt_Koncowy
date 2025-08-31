@@ -19,7 +19,7 @@ public class JwtService {
     private final Key key;
 
     public JwtService(@Value("${app.jwt.secret}") String secret) {
-        // akceptuje zwykły tekst (co masz w properties)
+        // akceptuje zwykły tekst (co jest w properties)
         byte[] bytes = secret.getBytes();
         if (secret.matches("^[A-Za-z0-9+/=]+$") && secret.length() % 4 == 0) {
             // jeśli ktoś kiedyś poda Base64

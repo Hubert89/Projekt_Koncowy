@@ -1,8 +1,8 @@
 import axios from "axios";
 
 /**
- * Używamy Vite proxy: '/api' -> http://localhost:8080
- * Dlatego baseURL zostawiamy PUSTE, a w wywołaniach podajemy pełną ścieżkę z prefiksem '/api/...'
+ * Używam Vite proxy: '/api' -> http://localhost:8080
+ * Dlatego baseURL zostawiam PUSTE, a w wywołaniach podaję pełną ścieżkę z prefiksem '/api/...'
  */
 const api = axios.create({
   baseURL: "", // ważne: PUSTE
@@ -27,7 +27,7 @@ export function setAuthToken(token: string | null) {
   }
 }
 
-// „Atrapa” (jeżeli gdzieś importujesz)
+// „Atrapa” (jeżeli gdzieś importuję)
 export function setUserContext(_user?: unknown) { /* noop */ }
 
 export { api, apiNoAuth };
