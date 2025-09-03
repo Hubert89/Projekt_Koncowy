@@ -46,6 +46,13 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
+                        // --- klienci: zarządzanie klientami przez kadrę ---
+                        .requestMatchers(HttpMethod.POST,   "/api/clients").hasRole("ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.GET,    "/api/clients/**").hasRole("ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.PATCH,  "/api/clients/**").hasRole("ADMINISTRATOR")
+                        .requestMatchers(HttpMethod.DELETE, "/api/clients/**").hasRole("ADMINISTRATOR")
+
+
                         // strefa klienta – własne zamówienia
                         .requestMatchers("/api/client/**").hasRole("KLIENT")
 

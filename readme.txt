@@ -46,7 +46,7 @@ Autor: Hubert Seweryn
 7) Struktura paczki do oceny (wg wytycznych)
    Backend/src         – kod źródłowy backendu (Java, Spring Boot)
    Frontend/src        – kod frontendu (React + Vite)
-   /database           – schema.sql
+   /database           – schema.sql, Schemat_bazy_danych.png
    /docs               – instrukcja użytkownika + dokumentacja techniczna (PDF)
    readme.txt          – ten plik
 

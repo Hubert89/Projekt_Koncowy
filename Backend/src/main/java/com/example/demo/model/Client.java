@@ -13,7 +13,7 @@ public class Client {
     private String name;
     private String email;
 
-    @ManyToOne(optional = false)
+    @OneToOne(optional = false, cascade = CascadeType.PERSIST)
     @JoinColumn(name = "user_id")
     private User user;
 
